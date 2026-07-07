@@ -1246,3 +1246,13 @@ h2 {
         max-width: 44px;
     }
 }
+
+/* iPhoneのホームインジケータ(セーフエリア)対策 */
+.tab-bar {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+}
+
+.app-main {
+    padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 24px);
+}

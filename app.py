@@ -417,13 +417,15 @@ def calendar_page():
         build_month_calendar(year, month)
     )
 
+    # 一覧は「今日以降のactive予約」だけを表示する(過去分・取消済みは
+    # レポートや管理者画面に記録が残るため、ここには出さない)
     reservations = db.execute(
         """
         SELECT * FROM reservations
-        WHERE user_id = ?
+        WHERE user_id = ? AND status = 'active' AND date >= ?
         ORDER BY date ASC, start_time ASC
         """,
-        (user_id,),
+        (user_id, today.isoformat()),
     ).fetchall()
 
     reserved_dates = {r["date"] for r in reservations if r["status"] == "active"}

@@ -2,10 +2,12 @@
 DB接続とスキーマ管理
 SQLite(training.db)への接続取得と、初回起動時のテーブル自動作成を行う。
 """
+import os
 import sqlite3
 from flask import g
 
-DATABASE = "training.db"
+# 起動時の作業ディレクトリに依存しないよう、このファイルと同じフォルダに置く
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "training.db")
 
 
 def get_db():

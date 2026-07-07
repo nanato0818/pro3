@@ -6,6 +6,7 @@ import calendar
 import csv
 import io
 import json
+import os
 from datetime import datetime, date, timedelta
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
@@ -33,8 +34,8 @@ while _t <= _end:
 WEEKLY_LIMIT_MIN = 420  # 週7時間制限(分)
 
 # 管理者登録コード(登録時にこのコードを入力すると管理者になる)
-# 運用時は変更すること
-ADMIN_CODE = "pro3-admin-2026"
+# 本番環境では環境変数 ADMIN_CODE で別の値に上書きする
+ADMIN_CODE = os.environ.get("ADMIN_CODE", "pro3-admin-2026")
 
 
 # ---------------------------------------------------------

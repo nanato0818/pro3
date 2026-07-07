@@ -28,6 +28,10 @@ while _t <= _end:
 
 WEEKLY_LIMIT_MIN = 420  # 週7時間制限(分)
 
+# 管理者登録コード(登録時にこのコードを入力すると管理者になる)
+# 運用時は変更すること
+ADMIN_CODE = "pro3-admin-2026"
+
 
 # ---------------------------------------------------------
 # 共通ヘルパー
@@ -44,6 +48,37 @@ def login_required(view):
         return view(*args, **kwargs)
 
     return wrapped
+
+
+def admin_required(view):
+    """未ログインならログインページへ、非管理者ならhomeへリダイレクトするデコレータ"""
+    from functools import wraps
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if session.get("user_id") is None:
+            return redirect(url_for("login"))
+        db = get_db()
+        user = db.execute(
+            "SELECT * FROM users WHERE id = ?", (session["user_id"],)
+        ).fetchone()
+        if user is None or not user["is_admin"]:
+            flash("管理者権限が必要です。", "error")
+            return redirect(url_for("home"))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+@app.context_processor
+def inject_current_user():
+    """テンプレートから現在ログイン中のユーザー(管理者判定含む)を参照できるようにする"""
+    current_user = None
+    user_id = session.get("user_id")
+    if user_id is not None:
+        db = get_db()
+        current_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return {"current_user": current_user}
 
 
 def get_weekly_reserved_minutes(user_id, target_date_str):
@@ -96,6 +131,7 @@ def register():
         class_grade = request.form.get("class_grade", "").strip()
         attendance_no = request.form.get("attendance_no", "").strip()
         name = request.form.get("name", "").strip()
+        admin_code = request.form.get("admin_code", "").strip()
 
         error = None
         if class_grade not in CLASS_GRADES:
@@ -104,6 +140,8 @@ def register():
             error = "出席番号は数値で入力してください。"
         elif not name:
             error = "名前を入力してください。"
+        elif admin_code and admin_code != ADMIN_CODE:
+            error = "管理者コードが正しくありません。"
 
         if error is None:
             db = get_db()
@@ -118,10 +156,12 @@ def register():
             flash(error, "error")
             return render_template("register.html", class_grades=CLASS_GRADES, form=request.form)
 
+        is_admin = 1 if admin_code and admin_code == ADMIN_CODE else 0
+
         db = get_db()
         cur = db.execute(
-            "INSERT INTO users (class_grade, attendance_no, name) VALUES (?, ?, ?)",
-            (class_grade, int(attendance_no), name),
+            "INSERT INTO users (class_grade, attendance_no, name, is_admin) VALUES (?, ?, ?, ?)",
+            (class_grade, int(attendance_no), name, is_admin),
         )
         db.commit()
         session["user_id"] = cur.lastrowid
@@ -478,6 +518,102 @@ def checkout(reservation_id):
         "success",
     )
     return redirect(url_for("home"))
+
+
+# ---------------------------------------------------------
+# 管理者ダッシュボード
+# ---------------------------------------------------------
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    db = get_db()
+    today_str = date.today().isoformat()
+
+    # (a) 本日の全予約一覧(全ユーザー分、時間順)
+    today_reservations = db.execute(
+        """
+        SELECT reservations.*, users.name AS user_name, users.class_grade AS user_class_grade,
+               users.attendance_no AS user_attendance_no
+        FROM reservations
+        JOIN users ON users.id = reservations.user_id
+        WHERE reservations.date = ?
+        ORDER BY reservations.start_time ASC
+        """,
+        (today_str,),
+    ).fetchall()
+
+    # (b) ユーザー一覧(今週の予約時間合計を付与)
+    all_users = db.execute(
+        "SELECT * FROM users ORDER BY class_grade ASC, attendance_no ASC"
+    ).fetchall()
+    users_with_stats = []
+    for u in all_users:
+        weekly_min = get_weekly_reserved_minutes(u["id"], today_str)
+        users_with_stats.append({"user": u, "weekly_min": weekly_min})
+
+    # (c) トレーニング実績(training_logsの全件、新しい順)
+    training_logs = db.execute(
+        """
+        SELECT training_logs.*, users.name AS user_name, users.class_grade AS user_class_grade,
+               users.attendance_no AS user_attendance_no
+        FROM training_logs
+        JOIN users ON users.id = training_logs.user_id
+        ORDER BY training_logs.id DESC
+        """
+    ).fetchall()
+
+    return render_template(
+        "admin.html",
+        today_reservations=today_reservations,
+        users_with_stats=users_with_stats,
+        training_logs=training_logs,
+        format_minutes=format_minutes,
+    )
+
+
+@app.route("/admin/reservation/<int:reservation_id>/cancel", methods=["POST"])
+@admin_required
+def admin_cancel_reservation(reservation_id):
+    db = get_db()
+    reservation = db.execute(
+        "SELECT * FROM reservations WHERE id = ?",
+        (reservation_id,),
+    ).fetchone()
+    if reservation is None:
+        flash("予約が見つかりません。", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    db.execute(
+        "UPDATE reservations SET status = 'cancelled' WHERE id = ?",
+        (reservation_id,),
+    )
+    db.commit()
+    flash("予約を強制的に取り消しました。", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/user/<int:user_id>/toggle_admin", methods=["POST"])
+@admin_required
+def admin_toggle_admin(user_id):
+    if user_id == session.get("user_id"):
+        flash("自分自身の管理者権限は変更できません。", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    db = get_db()
+    target = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if target is None:
+        flash("ユーザーが見つかりません。", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    new_value = 0 if target["is_admin"] else 1
+    db.execute("UPDATE users SET is_admin = ? WHERE id = ?", (new_value, user_id))
+    db.commit()
+    flash(
+        f"{target['name']}さんの管理者権限を{'付与' if new_value else '剥奪'}しました。",
+        "success",
+    )
+    return redirect(url_for("admin_dashboard"))
 
 
 if __name__ == "__main__":

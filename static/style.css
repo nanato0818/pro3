@@ -80,6 +80,28 @@ body {
     font-size: 1.1rem;
 }
 
+.header-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-link {
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-link:hover {
+    background: rgba(16, 185, 129, 0.25);
+    color: white;
+}
+
 .logout-link {
     color: #cbd5e1;
     text-decoration: none;
@@ -642,4 +664,91 @@ h2 {
     .app-header-inner {
         max-width: 900px;
     }
+}
+
+/* 管理者ダッシュボード */
+.admin-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+}
+
+.admin-tab-link {
+    background: var(--color-card);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text);
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-tab-link:hover {
+    background: #eef2ff;
+    border-color: var(--color-primary);
+}
+
+.admin-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-card);
+    scroll-margin-top: 76px;
+}
+
+.admin-section h2 {
+    margin-bottom: 12px;
+}
+
+.admin-user-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.admin-user-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f8fafc;
+}
+
+.admin-user-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.admin-user-card-stats {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+}
+
+.admin-user-card-stats strong {
+    color: var(--color-navy-900);
+}
+
+.badge-admin {
+    background: #eef2ff;
+    color: var(--color-primary-dark);
+}
+
+.reservation-card.is-overtime-row {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.admin-overtime-text {
+    color: var(--color-danger-dark);
+    font-weight: 700;
 }

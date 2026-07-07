@@ -18,6 +18,10 @@
     <label for="name">名前</label>
     <input type="text" name="name" id="name" value="{{ form.get('name', '') }}" required>
 
+    <label for="admin_code">管理者コード（任意）</label>
+    <input type="text" name="admin_code" id="admin_code" value="{{ form.get('admin_code', '') }}"
+           placeholder="管理者登録する場合のみ入力">
+
     <button type="submit" class="btn btn-primary">登録する</button>
 </form>
 <p class="switch-link">既に登録済みの方は <a href="{{ url_for('login') }}">ログイン</a></p>

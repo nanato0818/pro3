@@ -37,10 +37,17 @@ def init_db():
             class_grade TEXT NOT NULL,
             attendance_no INTEGER NOT NULL,
             name TEXT NOT NULL,
+            is_admin INTEGER NOT NULL DEFAULT 0,
             UNIQUE(class_grade, attendance_no)
         )
         """
     )
+
+    # 既存DB(is_adminカラムが無い旧スキーマ)への後方互換マイグレーション
+    columns = conn.execute("PRAGMA table_info(users)").fetchall()
+    column_names = [col[1] for col in columns]
+    if "is_admin" not in column_names:
+        conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
 
     conn.execute(
         """

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}管理者ダッシュボード - トレーニングルーム予約{% endblock %}
+{% block content %}
+<h1>管理者ダッシュボード</h1>
+
+<nav class="admin-tabs">
+    <a href="#admin-reservations" class="admin-tab-link">本日の予約</a>
+    <a href="#admin-users" class="admin-tab-link">ユーザー一覧</a>
+    <a href="#admin-logs" class="admin-tab-link">トレーニング実績</a>
+</nav>
+
+<section id="admin-reservations" class="admin-section">
+    <h2>本日の全予約一覧</h2>
+    {% if today_reservations %}
+    <div class="reservation-cards">
+        {% for r in today_reservations %}
+        <div class="reservation-card {% if r.status == 'cancelled' %}is-cancelled{% endif %}">
+            <div class="reservation-card-top">
+                <div>
+                    <div class="reservation-card-date">{{ r.user_name }}（{{ r.user_class_grade }} / 出席番号{{ r.user_attendance_no }}）</div>
+                    <div class="reservation-card-time">{{ r.start_time }} - {{ r.end_time }}</div>
+                </div>
+                {% if r.status == 'active' %}
+                    <span class="badge badge-active">予約中</span>
+                {% else %}
+                    <span class="badge badge-cancelled">取消済</span>
+                {% endif %}
+            </div>
+            {% if r.status == 'active' %}
+            <div class="reservation-card-actions">
+                <form method="post" action="{{ url_for('admin_cancel_reservation', reservation_id=r.id) }}"
+                      class="inline-form js-confirm-cancel">
+                    <button type="submit" class="btn btn-small btn-danger">強制取り消し</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="no-reservations">本日の予約はありません。</p>
+    {% endif %}
+</section>
+
+<section id="admin-users" class="admin-section">
+    <h2>ユーザー一覧</h2>
+    <div class="admin-user-cards">
+        {% for row in users_with_stats %}
+        {% set u = row.user %}
+        <div class="admin-user-card">
+            <div class="admin-user-card-top">
+                <div>
+                    <div class="reservation-card-date">{{ u.name }}</div>
+                    <div class="reservation-card-time">{{ u.class_grade }} / 出席番号{{ u.attendance_no }}</div>
+                </div>
+                {% if u.is_admin %}
+                    <span class="badge badge-admin">管理者</span>
+                {% endif %}
+            </div>
+            <div class="admin-user-card-stats">
+                今週の予約時間: <strong>{{ format_minutes(row.weekly_min) }}</strong>
+            </div>
+            <div class="reservation-card-actions">
+                <form method="post" action="{{ url_for('admin_toggle_admin', user_id=u.id) }}" class="inline-form">
+                    {% if u.is_admin %}
+                    <button type="submit" class="btn btn-small btn-secondary">管理者を剥奪</button>
+                    {% else %}
+                    <button type="submit" class="btn btn-small btn-primary">管理者に付与</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section id="admin-logs" class="admin-section">
+    <h2>トレーニング実績</h2>
+    {% if training_logs %}
+    <div class="reservation-cards">
+        {% for log in training_logs %}
+        <div class="reservation-card {% if log.overtime_min and log.overtime_min > 0 %}is-overtime-row{% endif %}">
+            <div class="reservation-card-top">
+                <div>
+                    <div class="reservation-card-date">{{ log.date }}　{{ log.user_name }}（{{ log.user_class_grade }} / 出席番号{{ log.user_attendance_no }}）</div>
+                    <div class="reservation-card-time">
+                        入室 {{ log.checkin_at or "-" }} / 退室 {{ log.checkout_at or "未退室" }}
+                    </div>
+                </div>
+            </div>
+            <div class="admin-user-card-stats">
+                実施時間: <strong>{{ format_minutes(log.duration_min) if log.duration_min is not none else "-" }}</strong>
+                {% if log.overtime_min and log.overtime_min > 0 %}
+                　<span class="admin-overtime-text">超過: {{ format_minutes(log.overtime_min) }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="no-reservations">トレーニング実績がありません。</p>
+    {% endif %}
+</section>
+{% endblock %}

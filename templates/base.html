@@ -13,7 +13,12 @@
     <div class="app-header-inner">
         <a href="{{ url_for('home') }}" class="app-title">トレーニングルーム予約</a>
         {% if session.get('user_id') %}
-        <a href="{{ url_for('logout') }}" class="logout-link">ログアウト</a>
+        <div class="header-links">
+            {% if current_user and current_user.is_admin %}
+            <a href="{{ url_for('admin_dashboard') }}" class="admin-link">管理</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="logout-link">ログアウト</a>
+        </div>
         {% endif %}
     </div>
 </header>

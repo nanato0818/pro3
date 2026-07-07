@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}新規登録 - トレーニングルーム予約{% endblock %}
+{% block content %}
+<h1>新規登録</h1>
+<form method="post" class="form-card">
+    <label for="class_grade">クラス学年</label>
+    <select name="class_grade" id="class_grade" required>
+        <option value="" disabled {% if not form.get('class_grade') %}selected{% endif %}>選択してください</option>
+        {% for cg in class_grades %}
+        <option value="{{ cg }}" {% if form.get('class_grade') == cg %}selected{% endif %}>{{ cg }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="attendance_no">出席番号</label>
+    <input type="number" name="attendance_no" id="attendance_no" min="1" step="1"
+           value="{{ form.get('attendance_no', '') }}" required>
+
+    <label for="name">名前</label>
+    <input type="text" name="name" id="name" value="{{ form.get('name', '') }}" required>
+
+    <button type="submit" class="btn btn-primary">登録する</button>
+</form>
+<p class="switch-link">既に登録済みの方は <a href="{{ url_for('login') }}">ログイン</a></p>
+{% endblock %}

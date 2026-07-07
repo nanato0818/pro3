@@ -1,0 +1,645 @@
+/* トレーニングルーム予約システム - フェーズ2 モダンUI
+   ダークネイビー×インディゴ基調 + エメラルドアクセント。
+   モバイルファースト・レスポンシブ(375px〜1280px)。 */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+
+:root {
+    /* カラーパレット */
+    --color-navy-900: #0f172a;
+    --color-navy-800: #1e293b;
+    --color-navy-700: #334155;
+    --color-indigo: #4f46e5;
+    --color-indigo-dark: #4338ca;
+    --color-accent: #10b981;
+    --color-accent-dark: #059669;
+
+    --color-primary: var(--color-indigo);
+    --color-primary-dark: var(--color-indigo-dark);
+    --color-danger: #ef4444;
+    --color-danger-dark: #dc2626;
+    --color-success: var(--color-accent);
+
+    --color-bg: #f1f5f9;
+    --color-card: #ffffff;
+    --color-text: #1e293b;
+    --color-muted: #64748b;
+    --color-border: #e2e8f0;
+
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-card-hover: 0 6px 16px rgba(15, 23, 42, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Noto Sans JP", "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ヘッダー(固定) */
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(135deg, var(--color-navy-900), var(--color-navy-800));
+    color: white;
+    padding: 14px 16px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.25);
+}
+
+.app-header-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-title {
+    color: white;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-title::before {
+    content: "💪";
+    font-size: 1.1rem;
+}
+
+.logout-link {
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.logout-link:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+}
+
+.app-main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+h1 {
+    font-size: 1.3rem;
+    margin: 8px 0 16px;
+    font-weight: 700;
+    color: var(--color-navy-900);
+}
+
+h2 {
+    font-size: 1.05rem;
+    margin: 0;
+    font-weight: 700;
+    color: var(--color-navy-900);
+}
+
+/* フラッシュメッセージ(トースト風) */
+.flash-container {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.flash {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: var(--shadow-card);
+    border-left: 4px solid transparent;
+    animation: toast-in 0.25s ease;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.flash-success {
+    background: #ecfdf5;
+    color: #065f46;
+    border-left-color: var(--color-accent);
+}
+
+.flash-error {
+    background: #fef2f2;
+    color: #991b1b;
+    border-left-color: var(--color-danger);
+}
+
+/* フォームカード(ログイン・登録・予約) */
+.form-card {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: var(--shadow-card);
+    max-width: 440px;
+    margin: 0 auto;
+}
+
+.form-card label {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    font-weight: 500;
+    margin-top: 14px;
+}
+
+.form-card select,
+.form-card input {
+    padding: 12px 14px;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    width: 100%;
+    min-height: 44px;
+    font-family: inherit;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-card select:focus,
+.form-card input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.switch-link {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+}
+
+.switch-link a {
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.switch-link a:hover {
+    text-decoration: underline;
+}
+
+/* 予約フォーム: 開始/終了を2カラムに */
+.form-card .time-slot-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.form-card .time-slot-row > div {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ボタン */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    margin-top: 14px;
+    min-height: 44px;
+    font-family: inherit;
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-dark);
+}
+
+.btn-secondary {
+    background: #eef2ff;
+    color: var(--color-primary-dark);
+    margin-left: 8px;
+}
+
+/* form-card内でbtn-largeの直後に来る場合はブロック化して積む */
+.form-card .btn-large + .btn-secondary {
+    display: block;
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+}
+
+.btn-secondary:hover {
+    background: #e0e7ff;
+}
+
+.btn-danger {
+    background: var(--color-danger);
+    color: white;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+    background: var(--color-danger-dark);
+}
+
+.btn-large {
+    width: 100%;
+    padding: 18px;
+    font-size: 1.1rem;
+    margin-top: 20px;
+}
+
+.btn-small {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    margin-top: 0;
+    min-height: 36px;
+}
+
+.btn-disabled {
+    background: #e2e8f0;
+    color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.btn-nav {
+    background: var(--color-card);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text);
+    margin-top: 0;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    min-height: 40px;
+}
+
+.btn-nav:hover {
+    background: #eef2ff;
+    border-color: var(--color-primary);
+}
+
+.inline-form {
+    display: inline-block;
+    margin-right: 4px;
+}
+
+/* カレンダー */
+.calendar-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-card);
+}
+
+.calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.calendar-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 3px;
+    table-layout: fixed;
+}
+
+.calendar-table th {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    font-weight: 600;
+    padding: 6px 0;
+    text-align: center;
+}
+
+.calendar-table th.sat {
+    color: var(--color-primary);
+}
+
+.calendar-table th.sun {
+    color: var(--color-danger);
+}
+
+.calendar-cell {
+    text-align: center;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    background: #f8fafc;
+    vertical-align: middle;
+}
+
+.calendar-cell.other-month {
+    color: #cbd5e1;
+    background: transparent;
+}
+
+.calendar-cell.is-past {
+    color: #cbd5e1;
+    background: transparent;
+}
+
+.calendar-cell.is-today {
+    background: #eef2ff;
+    font-weight: 900;
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+    border-radius: var(--radius-sm);
+}
+
+.day-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.day-link:hover {
+    background: var(--color-accent);
+    color: white;
+}
+
+.day-num {
+    font-size: 0.95rem;
+}
+
+.calendar-cell.other-month .day-num,
+.calendar-cell.is-past .day-num {
+    display: inline-block;
+    padding-top: 14px;
+}
+
+/* 予約一覧(カードリスト、スマホで横スクロールさせない) */
+.reservation-list-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-card);
+}
+
+.reservation-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.reservation-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f8fafc;
+}
+
+.reservation-card.is-cancelled {
+    opacity: 0.6;
+}
+
+.reservation-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.reservation-card-date {
+    font-weight: 700;
+    color: var(--color-navy-900);
+}
+
+.reservation-card-time {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+}
+
+.reservation-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.reservation-card-actions .inline-form {
+    margin-right: 0;
+}
+
+.reservation-card-actions .btn {
+    margin-top: 0;
+}
+
+.no-reservations {
+    color: var(--color-muted);
+    text-align: center;
+    padding: 24px 12px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-cancelled {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* 本日のトレーニング時間(統計カード) */
+.today-summary {
+    background: linear-gradient(135deg, var(--color-navy-900), var(--color-indigo-dark));
+    color: white;
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-card);
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.today-summary strong {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--color-accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.remaining-note {
+    background: #eef2ff;
+    color: var(--color-navy-900);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    max-width: 440px;
+    margin: 0 auto 14px;
+}
+
+.remaining-note strong {
+    color: var(--color-primary-dark);
+}
+
+/* トレーニングセッション画面 */
+.session-info {
+    color: var(--color-muted);
+    text-align: center;
+}
+
+.session-panel {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 32px 20px;
+    text-align: center;
+    box-shadow: var(--shadow-card);
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.elapsed-label,
+.remaining-label {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    font-weight: 500;
+    margin-top: 10px;
+    letter-spacing: 0.02em;
+}
+
+.elapsed-time {
+    font-size: 3.4rem;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    font-family: "Noto Sans JP", "Segoe UI", monospace;
+    color: var(--color-navy-900);
+    letter-spacing: 0.02em;
+}
+
+.remaining-time {
+    font-size: 1.7rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-primary-dark);
+}
+
+.overtime-warning {
+    margin-top: 18px;
+    padding: 12px;
+    background: #fee2e2;
+    color: #991b1b;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+}
+
+/* 超過時: パネル全体が赤系に変わり、パルスで警告を強調 */
+.session-panel.is-overtime {
+    background: #fef2f2;
+    box-shadow: 0 0 0 3px var(--color-danger) inset, 0 0 24px rgba(239, 68, 68, 0.25);
+    animation: overtime-pulse 1.4s ease-in-out infinite;
+}
+
+.session-panel.is-overtime .elapsed-time {
+    color: var(--color-danger-dark);
+}
+
+.session-panel.is-overtime .remaining-time {
+    color: var(--color-danger-dark);
+}
+
+.session-panel.is-overtime .overtime-warning {
+    animation: overtime-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes overtime-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px var(--color-danger) inset, 0 0 24px rgba(239, 68, 68, 0.25); }
+    50% { box-shadow: 0 0 0 5px var(--color-danger) inset, 0 0 36px rgba(239, 68, 68, 0.4); }
+}
+
+@keyframes overtime-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+
+/* レスポンシブ(タブレット・PC以上で余白とレイアウトを広げる) */
+@media (min-width: 600px) {
+    .app-main {
+        padding: 24px;
+    }
+
+    .calendar-cell {
+        height: 60px;
+    }
+
+    .reservation-card {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .reservation-card-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+}
+
+@media (min-width: 900px) {
+    .app-main {
+        max-width: 900px;
+    }
+
+    .app-header-inner {
+        max-width: 900px;
+    }
+}

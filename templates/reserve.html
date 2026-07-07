@@ -7,6 +7,10 @@
 <p class="remaining-note">今週の残り予約可能時間: <strong>{{ remaining_text }}</strong></p>
 {% endif %}
 
+{% if has_penalty %}
+<p class="penalty-note">今週の上限: <strong>{{ weekly_limit_text }}</strong>（先週の超過{{ penalty_text }}を差し引き）</p>
+{% endif %}
+
 <form method="post" class="form-card">
     <div class="time-slot-row">
         <div>

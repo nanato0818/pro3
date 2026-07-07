@@ -14,6 +14,7 @@
         <a href="{{ url_for('home') }}" class="app-title">トレーニングルーム予約</a>
         {% if session.get('user_id') %}
         <div class="header-links">
+            <a href="{{ url_for('report') }}" class="admin-link">レポート</a>
             {% if current_user and current_user.is_admin %}
             <a href="{{ url_for('admin_dashboard') }}" class="admin-link">管理</a>
             {% endif %}

@@ -7,6 +7,7 @@
     <a href="#admin-reservations" class="admin-tab-link">本日の予約</a>
     <a href="#admin-users" class="admin-tab-link">ユーザー一覧</a>
     <a href="#admin-logs" class="admin-tab-link">トレーニング実績</a>
+    <a href="#admin-settings" class="admin-tab-link">設定</a>
 </nav>
 
 <section id="admin-reservations" class="admin-section">
@@ -76,6 +77,7 @@
 
 <section id="admin-logs" class="admin-section">
     <h2>トレーニング実績</h2>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-secondary btn-small">CSVダウンロード</a>
     {% if training_logs %}
     <div class="reservation-cards">
         {% for log in training_logs %}
@@ -100,5 +102,14 @@
     {% else %}
     <p class="no-reservations">トレーニング実績がありません。</p>
     {% endif %}
+</section>
+
+<section id="admin-settings" class="admin-section">
+    <h2>設定</h2>
+    <form method="post" action="{{ url_for('admin_settings') }}" class="admin-settings-form">
+        <label for="room_capacity">同時間帯の定員（人数）</label>
+        <input type="number" name="room_capacity" id="room_capacity" min="1" step="1" value="{{ room_capacity }}" required>
+        <button type="submit" class="btn btn-primary btn-small">保存</button>
+    </form>
 </section>
 {% endblock %}

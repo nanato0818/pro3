@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}週間レポート - トレーニングルーム予約{% endblock %}
+{% block content %}
+<h1>週間レポート</h1>
+
+<section class="admin-section report-section">
+    <h2>今週のトレーニング時間（日別）</h2>
+    <div class="report-daily-chart">
+        {% for bar in daily_bars %}
+        <div class="report-daily-bar-col">
+            <div class="report-daily-bar-value">{{ bar.total_text }}</div>
+            <div class="report-daily-bar-track">
+                <div class="report-daily-bar-overtime" style="height: {{ bar.overtime_pct }}%;"></div>
+                <div class="report-daily-bar-normal" style="height: {{ bar.normal_pct }}%;"></div>
+            </div>
+            <div class="report-daily-bar-label">{{ bar.label }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="report-legend">
+        <span class="report-legend-swatch report-legend-normal"></span>通常時間
+        <span class="report-legend-swatch report-legend-overtime"></span>超過時間
+    </p>
+</section>
+
+<section class="admin-section report-section">
+    <h2>直近4週間の週合計</h2>
+    <p class="report-limit-note">今週の予約上限: <strong>{{ weekly_limit_text }}</strong></p>
+    <div class="report-weekly-chart">
+        {% for bar in weekly_bars %}
+        <div class="report-weekly-bar-row">
+            <div class="report-weekly-bar-label">{{ bar.label }}{% if bar.is_this_week %}（今週）{% endif %}</div>
+            <div class="report-weekly-bar-track">
+                <div class="report-weekly-bar-fill {% if bar.is_this_week %}is-this-week{% endif %}" style="width: {{ bar.pct }}%;"></div>
+            </div>
+            <div class="report-weekly-bar-value">{{ bar.total_text }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

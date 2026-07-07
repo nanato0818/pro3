@@ -16,6 +16,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (root) {
         initSessionTimer(root);
     }
+
+    // ホーム画面の予約リマインダー通知(session.htmlの超過通知とは独立したロジック)
+    const reminderDataEl = document.getElementById("reminder-data");
+    if (reminderDataEl) {
+        initHomeReminders(reminderDataEl);
+    }
 });
 
 function initSessionTimer(root) {
@@ -73,4 +79,68 @@ function initSessionTimer(root) {
 
     tick();
     setInterval(tick, 1000);
+}
+
+// ホーム画面専用: 開始15分前の予約リマインダー通知
+// (session.htmlの超過通知ロジックとは名前空間・関数を分離している)
+const HOME_REMINDER_STORAGE_KEY = "homeReminderNotifiedIds";
+
+function initHomeReminders(reminderDataEl) {
+    let reminders;
+    try {
+        reminders = JSON.parse(reminderDataEl.textContent || "[]");
+    } catch (err) {
+        reminders = [];
+    }
+
+    if (!reminders.length) {
+        return;
+    }
+
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+
+    function getNotifiedIds() {
+        try {
+            const raw = sessionStorage.getItem(HOME_REMINDER_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    function markNotified(reservationId) {
+        const ids = getNotifiedIds();
+        if (!ids.includes(reservationId)) {
+            ids.push(reservationId);
+            sessionStorage.setItem(HOME_REMINDER_STORAGE_KEY, JSON.stringify(ids));
+        }
+    }
+
+    function checkReminders() {
+        if (!("Notification" in window) || Notification.permission !== "granted") {
+            return;
+        }
+        const now = new Date();
+        const notifiedIds = getNotifiedIds();
+
+        reminders.forEach(function (r) {
+            if (notifiedIds.includes(r.reservation_id)) {
+                return;
+            }
+            const startAt = new Date(r.start_time);
+            const diffMin = (startAt - now) / 60000;
+
+            if (diffMin > 0 && diffMin <= 15) {
+                const hh = String(startAt.getHours()).padStart(2, "0");
+                const mm = String(startAt.getMinutes()).padStart(2, "0");
+                new Notification(`まもなく予約時間です（${hh}:${mm}開始）`);
+                markNotified(r.reservation_id);
+            }
+        });
+    }
+
+    checkReminders();
+    setInterval(checkReminders, 30000);
 }

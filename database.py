@@ -81,6 +81,18 @@ def init_db():
         """
     )
 
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        """
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO settings (key, value) VALUES ('room_capacity', '20')"
+    )
+
     conn.commit()
     conn.close()
 

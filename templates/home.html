@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ホーム - トレーニングルーム予約{% endblock %}
 {% block content %}
+<script type="application/json" id="reminder-data">{{ reminder_data_json | safe }}</script>
 <h1>ようこそ、{{ user.name }}さん（{{ user.class_grade }} / 出席番号{{ user.attendance_no }}）</h1>
 
 <p class="today-summary">本日のトレーニング時間: <strong>{{ format_minutes(today_total_min) }}</strong></p>

@@ -3,9 +3,12 @@
 Flaskアプリ本体。ルート定義とDB初期化を行う。
 """
 import calendar
+import csv
+import io
+import json
 from datetime import datetime, date, timedelta
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 
 import database
 from database import get_db
@@ -14,6 +17,7 @@ app = Flask(__name__)
 app.secret_key = "training-room-app-secret-key-phase1"  # フェーズ1用の簡易シークレットキー
 
 database.init_app(app)
+database.init_db()
 
 # クラス学年の選択肢(I1〜I5, M1〜M5, S1〜S5 の15択)
 CLASS_GRADES = [f"{prefix}{n}" for prefix in ("I", "M", "S") for n in range(1, 6)]
@@ -119,6 +123,79 @@ def format_minutes(total_min):
     if hours:
         return f"{hours}時間"
     return f"{minutes}分"
+
+
+def get_room_capacity():
+    """settingsテーブルからルーム定員を読む。未設定なら20を返す。"""
+    db = get_db()
+    row = db.execute(
+        "SELECT value FROM settings WHERE key = 'room_capacity'"
+    ).fetchone()
+    if row is None or row["value"] is None:
+        return 20
+    try:
+        return int(row["value"])
+    except (TypeError, ValueError):
+        return 20
+
+
+def find_full_slot(date_str, start_time, end_time):
+    """
+    [start_time, end_time) を15分刻みのスロットに分解し、各スロットについて
+    その日付のactive予約(全ユーザー)がそのスロットを覆っている件数を数える。
+    定員以上のスロットがあれば、最初に見つかった満員スロットの時刻を返す。
+    無ければNoneを返す。
+    将来、定員判定のロジックを変更する場合はこの関数だけを修正すればよい。
+    """
+    db = get_db()
+    capacity = get_room_capacity()
+
+    slots = [t for t in TIME_SLOTS if start_time <= t < end_time]
+    if not slots:
+        return None
+
+    active_reservations = db.execute(
+        """
+        SELECT start_time, end_time FROM reservations
+        WHERE date = ? AND status = 'active'
+        """,
+        (date_str,),
+    ).fetchall()
+
+    for slot in slots:
+        count = 0
+        for r in active_reservations:
+            if r["start_time"] <= slot < r["end_time"]:
+                count += 1
+        if count >= capacity:
+            return slot
+    return None
+
+
+def get_weekly_limit_minutes(user_id, target_date_str):
+    """
+    target_date_strが属する週の上限時間(分)を返す。
+    基本は週7時間(420分)だが、前週(前週月曜〜日曜)のtraining_logsの
+    超過時間(overtime_min)合計をペナルティとして差し引く。下限は0分。
+    将来ペナルティ算出ロジックを変えたい場合はこの関数だけを修正すればよい。
+    """
+    db = get_db()
+    target = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+    this_monday = target - timedelta(days=target.weekday())
+    prev_monday = this_monday - timedelta(days=7)
+    prev_sunday = this_monday - timedelta(days=1)
+
+    row = db.execute(
+        """
+        SELECT COALESCE(SUM(overtime_min), 0) AS total_overtime
+        FROM training_logs
+        WHERE user_id = ? AND date BETWEEN ? AND ?
+        """,
+        (user_id, prev_monday.isoformat(), prev_sunday.isoformat()),
+    ).fetchone()
+    penalty = row["total_overtime"] or 0
+
+    return max(0, WEEKLY_LIMIT_MIN - penalty)
 
 
 # ---------------------------------------------------------
@@ -266,6 +343,19 @@ def home():
     ).fetchall()
     today_total_min = sum(row["duration_min"] or 0 for row in today_logs)
 
+    # リマインダー通知用: 本日のactive予約の開始時刻一覧(JSへ渡すJSON)
+    today_active_reservations = [
+        r for r in reservations if r["date"] == now_date_str and r["status"] == "active"
+    ]
+    reminder_data = [
+        {
+            "reservation_id": r["id"],
+            "start_time": f"{r['date']}T{r['start_time']}:00",
+        }
+        for r in today_active_reservations
+    ]
+    reminder_data_json = json.dumps(reminder_data)
+
     return render_template(
         "home.html",
         user=user,
@@ -282,6 +372,7 @@ def home():
         now_time_str=now_time_str,
         today_total_min=today_total_min,
         format_minutes=format_minutes,
+        reminder_data_json=reminder_data_json,
     )
 
 
@@ -323,10 +414,17 @@ def reserve(date_str):
             e = datetime.strptime(end_time, "%H:%M")
             new_duration = int((e - s).total_seconds() // 60)
 
+            weekly_limit = get_weekly_limit_minutes(user_id, date_str)
             weekly_used = get_weekly_reserved_minutes(user_id, date_str)
-            if weekly_used + new_duration > WEEKLY_LIMIT_MIN:
-                remaining = max(0, WEEKLY_LIMIT_MIN - weekly_used)
+            if weekly_used + new_duration > weekly_limit:
+                remaining = max(0, weekly_limit - weekly_used)
                 error = f"週7時間の予約上限を超えます。今週の残り予約可能時間は{format_minutes(remaining)}です。"
+
+        if error is None:
+            full_slot = find_full_slot(date_str, start_time, end_time)
+            if full_slot is not None:
+                capacity = get_room_capacity()
+                error = f"{full_slot}の時間帯は満員（定員{capacity}名）のため予約できません。"
 
         if error is not None:
             flash(error, "error")
@@ -354,8 +452,12 @@ def reserve(date_str):
         flash("過去の日付には予約できません。", "error")
         return redirect(url_for("home"))
 
+    weekly_limit = get_weekly_limit_minutes(user_id, date_str)
     weekly_used = get_weekly_reserved_minutes(user_id, date_str)
-    remaining_min = max(0, WEEKLY_LIMIT_MIN - weekly_used)
+    remaining_min = max(0, weekly_limit - weekly_used)
+
+    penalty_min = WEEKLY_LIMIT_MIN - weekly_limit
+    has_penalty = penalty_min > 0
 
     return render_template(
         "reserve.html",
@@ -364,6 +466,9 @@ def reserve(date_str):
         time_slots=TIME_SLOTS,
         form={},
         remaining_text=format_minutes(remaining_min),
+        has_penalty=has_penalty,
+        penalty_text=format_minutes(penalty_min) if has_penalty else None,
+        weekly_limit_text=format_minutes(weekly_limit) if has_penalty else None,
     )
 
 
@@ -387,6 +492,107 @@ def cancel_reservation(reservation_id):
     db.commit()
     flash("予約を取り消しました。", "success")
     return redirect(url_for("home"))
+
+
+# ---------------------------------------------------------
+# 週間レポート
+# ---------------------------------------------------------
+
+WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
+
+
+@app.route("/report")
+@login_required
+def report():
+    db = get_db()
+    user_id = session["user_id"]
+    today = date.today()
+    this_monday = today - timedelta(days=today.weekday())
+
+    # (a) 今週(月〜日)の日別トレーニング時間(training_logsの実働分。退室済みのみ)
+    week_logs = db.execute(
+        """
+        SELECT date, duration_min, overtime_min FROM training_logs
+        WHERE user_id = ? AND date BETWEEN ? AND ? AND checkout_at IS NOT NULL
+        """,
+        (user_id, this_monday.isoformat(), (this_monday + timedelta(days=6)).isoformat()),
+    ).fetchall()
+
+    daily_normal = [0] * 7
+    daily_overtime = [0] * 7
+    for row in week_logs:
+        d = datetime.strptime(row["date"], "%Y-%m-%d").date()
+        idx = (d - this_monday).days
+        if 0 <= idx < 7:
+            duration = row["duration_min"] or 0
+            overtime = row["overtime_min"] or 0
+            normal = max(0, duration - overtime)
+            daily_normal[idx] += normal
+            daily_overtime[idx] += overtime
+
+    daily_total = [daily_normal[i] + daily_overtime[i] for i in range(7)]
+    daily_max = max(daily_total) if max(daily_total) > 0 else 1
+
+    daily_bars = []
+    for i in range(7):
+        day = this_monday + timedelta(days=i)
+        daily_bars.append(
+            {
+                "label": WEEKDAY_LABELS_JA[i],
+                "date": day.isoformat(),
+                "normal_min": daily_normal[i],
+                "overtime_min": daily_overtime[i],
+                "total_min": daily_total[i],
+                "normal_pct": round(daily_normal[i] / daily_max * 100, 1),
+                "overtime_pct": round(daily_overtime[i] / daily_max * 100, 1),
+                "total_text": format_minutes(daily_total[i]),
+            }
+        )
+
+    # (b) 直近4週間(今週含む)の週合計(training_logsの実働分)
+    weekly_bars = []
+    week_totals = []
+    for w in range(3, -1, -1):
+        week_monday = this_monday - timedelta(days=7 * w)
+        week_sunday = week_monday + timedelta(days=6)
+        row = db.execute(
+            """
+            SELECT COALESCE(SUM(duration_min), 0) AS total
+            FROM training_logs
+            WHERE user_id = ? AND date BETWEEN ? AND ? AND checkout_at IS NOT NULL
+            """,
+            (user_id, week_monday.isoformat(), week_sunday.isoformat()),
+        ).fetchone()
+        total_min = row["total"] or 0
+        week_totals.append(
+            {
+                "label": f"{week_monday.month}/{week_monday.day}週",
+                "total_min": total_min,
+                "is_this_week": w == 0,
+            }
+        )
+
+    weekly_max = max((w["total_min"] for w in week_totals), default=0)
+    weekly_max = weekly_max if weekly_max > 0 else 1
+    for w in week_totals:
+        weekly_bars.append(
+            {
+                "label": w["label"],
+                "total_min": w["total_min"],
+                "total_text": format_minutes(w["total_min"]),
+                "pct": round(w["total_min"] / weekly_max * 100, 1),
+                "is_this_week": w["is_this_week"],
+            }
+        )
+
+    weekly_limit = get_weekly_limit_minutes(user_id, today.isoformat())
+
+    return render_template(
+        "report.html",
+        daily_bars=daily_bars,
+        weekly_bars=weekly_bars,
+        weekly_limit_text=format_minutes(weekly_limit),
+    )
 
 
 # ---------------------------------------------------------
@@ -569,7 +775,32 @@ def admin_dashboard():
         users_with_stats=users_with_stats,
         training_logs=training_logs,
         format_minutes=format_minutes,
+        room_capacity=get_room_capacity(),
     )
+
+
+@app.route("/admin/settings", methods=["POST"])
+@admin_required
+def admin_settings():
+    db = get_db()
+    room_capacity = request.form.get("room_capacity", "").strip()
+
+    error = None
+    if not room_capacity.isdigit() or int(room_capacity) < 1:
+        error = "定員は1以上の整数で入力してください。"
+
+    if error is not None:
+        flash(error, "error")
+        return redirect(url_for("admin_dashboard") + "#admin-settings")
+
+    db.execute(
+        "INSERT INTO settings (key, value) VALUES ('room_capacity', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (room_capacity,),
+    )
+    db.commit()
+    flash(f"定員を{room_capacity}名に変更しました。", "success")
+    return redirect(url_for("admin_dashboard") + "#admin-settings")
 
 
 @app.route("/admin/reservation/<int:reservation_id>/cancel", methods=["POST"])
@@ -614,6 +845,45 @@ def admin_toggle_admin(user_id):
         "success",
     )
     return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/export.csv")
+@admin_required
+def export_csv():
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT training_logs.date AS log_date, users.class_grade AS user_class_grade,
+               users.attendance_no AS user_attendance_no, users.name AS user_name,
+               training_logs.checkin_at, training_logs.checkout_at,
+               training_logs.duration_min, training_logs.overtime_min
+        FROM training_logs
+        JOIN users ON users.id = training_logs.user_id
+        ORDER BY training_logs.id DESC
+        """
+    ).fetchall()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["日付", "クラス", "出席番号", "名前", "入室時刻", "退室時刻", "実施時間(分)", "超過時間(分)"])
+    for r in rows:
+        writer.writerow(
+            [
+                r["log_date"],
+                r["user_class_grade"],
+                r["user_attendance_no"],
+                r["user_name"],
+                r["checkin_at"] or "",
+                r["checkout_at"] or "",
+                r["duration_min"] if r["duration_min"] is not None else "",
+                r["overtime_min"] if r["overtime_min"] is not None else "",
+            ]
+        )
+
+    csv_bytes = buffer.getvalue().encode("utf-8-sig")
+    response = Response(csv_bytes, mimetype="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=training_logs.csv"
+    return response
 
 
 if __name__ == "__main__":

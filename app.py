@@ -289,23 +289,11 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ---------------------------------------------------------
-# ホーム(カレンダー・予約一覧)
-# ---------------------------------------------------------
-
-@app.route("/")
-@login_required
-def home():
-    db = get_db()
-    user_id = session["user_id"]
-    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-
-    # 表示対象の年月(クエリパラメータ。無指定なら今月)
-    today = date.today()
-    year = request.args.get("year", type=int, default=today.year)
-    month = request.args.get("month", type=int, default=today.month)
-
-    # 月またぎのnavボタン対応(0以下・13以上を正規化)
+def build_month_calendar(year, month):
+    """
+    指定年月(月またぎのnavボタン対応で0以下・13以上も正規化)のカレンダーデータを組み立てる。
+    home()と/calendarの両方から呼べるよう関数化している。
+    """
     if month < 1:
         year -= 1
         month = 12
@@ -319,7 +307,26 @@ def home():
     prev_year, prev_month = (year - 1, 12) if month == 1 else (year, month - 1)
     next_year, next_month = (year + 1, 1) if month == 12 else (year, month + 1)
 
-    # 自分の予約一覧(日付順、active/cancelled両方。今後の一覧表示用)
+    return year, month, month_days, prev_year, prev_month, next_year, next_month
+
+
+# ---------------------------------------------------------
+# ホーム
+# ---------------------------------------------------------
+
+@app.route("/")
+@login_required
+def home():
+    db = get_db()
+    user_id = session["user_id"]
+    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+    today = date.today()
+    now = datetime.now()
+    now_date_str = now.strftime("%Y-%m-%d")
+    now_time_str = now.strftime("%H:%M")
+
+    # 自分の予約一覧(日付順、active/cancelled両方)
     reservations = db.execute(
         """
         SELECT * FROM reservations
@@ -329,24 +336,42 @@ def home():
         (user_id,),
     ).fetchall()
 
-    # 当日開始済みで入室可能な予約を判定するための現在時刻
-    now = datetime.now()
-    now_date_str = now.strftime("%Y-%m-%d")
-    now_time_str = now.strftime("%H:%M")
+    active_reservations = [r for r in reservations if r["status"] == "active"]
+    today_reservation = next(
+        (r for r in active_reservations if r["date"] == now_date_str), None
+    )
+    upcoming_reservations = [
+        r for r in active_reservations if r["date"] > now_date_str
+    ]
 
-    # 本日のトレーニング実績(training_logsから)
-    today_logs = db.execute(
+    # 今週の利用時間(予約ベース)と週上限(ペナルティ反映)
+    weekly_used_min = get_weekly_reserved_minutes(user_id, today.isoformat())
+    weekly_limit_min = get_weekly_limit_minutes(user_id, today.isoformat())
+    weekly_remaining_min = max(0, weekly_limit_min - weekly_used_min)
+    weekly_used_hours = round(weekly_used_min / 60, 1)
+    weekly_limit_hours = round(weekly_limit_min / 60, 1)
+    weekly_pct = (
+        min(100, round(weekly_used_min / weekly_limit_min * 100, 1))
+        if weekly_limit_min > 0
+        else 100
+    )
+
+    # 入室中(checkout_atがNULL)のトレーニングログがあれば、退室画面への導線を出す
+    active_log = db.execute(
         """
-        SELECT * FROM training_logs
-        WHERE user_id = ? AND date = ? AND checkout_at IS NOT NULL
+        SELECT training_logs.*, reservations.date AS r_date,
+               reservations.start_time AS r_start_time, reservations.end_time AS r_end_time
+        FROM training_logs
+        JOIN reservations ON reservations.id = training_logs.reservation_id
+        WHERE training_logs.user_id = ? AND training_logs.checkout_at IS NULL
+        ORDER BY training_logs.id DESC LIMIT 1
         """,
-        (user_id, now_date_str),
-    ).fetchall()
-    today_total_min = sum(row["duration_min"] or 0 for row in today_logs)
+        (user_id,),
+    ).fetchone()
 
     # リマインダー通知用: 本日のactive予約の開始時刻一覧(JSへ渡すJSON)
     today_active_reservations = [
-        r for r in reservations if r["date"] == now_date_str and r["status"] == "active"
+        r for r in active_reservations if r["date"] == now_date_str
     ]
     reminder_data = [
         {
@@ -360,6 +385,55 @@ def home():
     return render_template(
         "home.html",
         user=user,
+        now_date_str=now_date_str,
+        now_time_str=now_time_str,
+        today_reservation=today_reservation,
+        upcoming_reservations=upcoming_reservations,
+        weekly_used_hours=weekly_used_hours,
+        weekly_limit_hours=weekly_limit_hours,
+        weekly_pct=weekly_pct,
+        weekly_remaining_text=format_minutes(weekly_remaining_min),
+        active_log=active_log,
+        format_minutes=format_minutes,
+        reminder_data_json=reminder_data_json,
+    )
+
+
+# ---------------------------------------------------------
+# 予約タブ(月間カレンダー)
+# ---------------------------------------------------------
+
+@app.route("/calendar")
+@login_required
+def calendar_page():
+    db = get_db()
+    user_id = session["user_id"]
+
+    today = date.today()
+    year = request.args.get("year", type=int, default=today.year)
+    month = request.args.get("month", type=int, default=today.month)
+
+    year, month, month_days, prev_year, prev_month, next_year, next_month = (
+        build_month_calendar(year, month)
+    )
+
+    reservations = db.execute(
+        """
+        SELECT * FROM reservations
+        WHERE user_id = ?
+        ORDER BY date ASC, start_time ASC
+        """,
+        (user_id,),
+    ).fetchall()
+
+    reserved_dates = {r["date"] for r in reservations if r["status"] == "active"}
+
+    now = datetime.now()
+    now_date_str = now.strftime("%Y-%m-%d")
+    now_time_str = now.strftime("%H:%M")
+
+    return render_template(
+        "calendar.html",
         year=year,
         month=month,
         month_days=month_days,
@@ -368,12 +442,10 @@ def home():
         prev_month=prev_month,
         next_year=next_year,
         next_month=next_month,
+        reserved_dates=reserved_dates,
         reservations=reservations,
         now_date_str=now_date_str,
         now_time_str=now_time_str,
-        today_total_min=today_total_min,
-        format_minutes=format_minutes,
-        reminder_data_json=reminder_data_json,
     )
 
 

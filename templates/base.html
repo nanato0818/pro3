@@ -11,15 +11,9 @@
 <body>
 <header class="app-header">
     <div class="app-header-inner">
-        <a href="{{ url_for('home') }}" class="app-title">トレーニングルーム予約</a>
+        <span class="app-title">トレーニングルーム予約</span>
         {% if session.get('user_id') %}
-        <div class="header-links">
-            <a href="{{ url_for('report') }}" class="admin-link">レポート</a>
-            {% if current_user and current_user.is_admin %}
-            <a href="{{ url_for('admin_dashboard') }}" class="admin-link">管理</a>
-            {% endif %}
-            <a href="{{ url_for('logout') }}" class="logout-link">ログアウト</a>
-        </div>
+        <a href="{{ url_for('logout') }}" class="logout-link">ログアウト</a>
         {% endif %}
     </div>
 </header>
@@ -37,6 +31,29 @@
 
     {% block content %}{% endblock %}
 </main>
+
+{% if session.get('user_id') %}
+<nav class="tab-bar">
+    <a href="{{ url_for('home') }}" class="tab-item {% if request.endpoint == 'home' %}is-active{% endif %}">
+        <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
+        <span>ホーム</span>
+    </a>
+    <a href="{{ url_for('calendar_page') }}" class="tab-item {% if request.endpoint in ('calendar_page', 'reserve') %}is-active{% endif %}">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+        <span>予約</span>
+    </a>
+    <a href="{{ url_for('report') }}" class="tab-item {% if request.endpoint == 'report' %}is-active{% endif %}">
+        <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>
+        <span>レポート</span>
+    </a>
+    {% if current_user and current_user.is_admin %}
+    <a href="{{ url_for('admin_dashboard') }}" class="tab-item {% if request.endpoint == 'admin_dashboard' %}is-active{% endif %}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.1 7.1 0 0 0 .06-1 7.1 7.1 0 0 0-.06-1l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.73-1L14.5 2.8a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4l-.41 2.4a7.3 7.3 0 0 0-1.73 1l-2.39-.96a.5.5 0 0 0-.6.22L2.45 8.78a.5.5 0 0 0 .12.64L4.6 11a7.1 7.1 0 0 0-.06 1 7.1 7.1 0 0 0 .06 1l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.53.43 1.11.77 1.73 1l.41 2.4c.05.24.25.4.5.4h4c.25 0 .45-.16.5-.4l.41-2.4c.62-.23 1.2-.57 1.73-1l2.39.96c.21.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64z"/></svg>
+        <span>管理</span>
+    </a>
+    {% endif %}
+</nav>
+{% endif %}
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 {% block scripts %}{% endblock %}

@@ -2,86 +2,82 @@
 {% block title %}ホーム - トレーニングルーム予約{% endblock %}
 {% block content %}
 <script type="application/json" id="reminder-data">{{ reminder_data_json | safe }}</script>
-<h1>ようこそ、{{ user.name }}さん（{{ user.class_grade }} / 出席番号{{ user.attendance_no }}）</h1>
 
-<p class="today-summary">本日のトレーニング時間: <strong>{{ format_minutes(today_total_min) }}</strong></p>
-
-<section class="calendar-section">
-    <div class="calendar-nav">
-        <a href="{{ url_for('home', year=prev_year, month=prev_month) }}" class="btn btn-nav">&laquo; 前月</a>
-        <h2>{{ year }}年 {{ month }}月</h2>
-        <a href="{{ url_for('home', year=next_year, month=next_month) }}" class="btn btn-nav">次月 &raquo;</a>
+<section class="greeting-block">
+    <div class="greeting-text">
+        <div class="greeting-hello">こんにちは</div>
+        <div class="greeting-name">{{ user.name }}さん</div>
+        <div class="greeting-class">{{ user.class_grade }}・{{ user.attendance_no }}番</div>
     </div>
-
-    <table class="calendar-table">
-        <thead>
-            <tr>
-                <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th class="sat">土</th><th class="sun">日</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for week in month_days %}
-            <tr>
-                {% for day in week %}
-                {% set is_other_month = day.month != month %}
-                {% set is_past = day < today %}
-                {% set is_today = day == today %}
-                <td class="calendar-cell
-                    {% if is_other_month %}other-month{% endif %}
-                    {% if is_today %}is-today{% endif %}
-                    {% if is_past %}is-past{% endif %}">
-                    {% if is_other_month or is_past %}
-                    <span class="day-num">{{ day.day }}</span>
-                    {% else %}
-                    <a href="{{ url_for('reserve', date_str=day.isoformat()) }}" class="day-link">
-                        <span class="day-num">{{ day.day }}</span>
-                    </a>
-                    {% endif %}
-                </td>
-                {% endfor %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="avatar-circle">{{ user.name[0] }}</div>
 </section>
 
-<section class="reservation-list-section">
-    <h2>自分の予約一覧</h2>
-    {% if reservations %}
-    <div class="reservation-cards">
-        {% for r in reservations %}
-        <div class="reservation-card {% if r.status == 'cancelled' %}is-cancelled{% endif %}">
-            <div class="reservation-card-top">
-                <div>
-                    <div class="reservation-card-date">{{ r.date }}</div>
-                    <div class="reservation-card-time">{{ r.start_time }} - {{ r.end_time }}</div>
-                </div>
-                {% if r.status == 'active' %}
-                    <span class="badge badge-active">予約中</span>
-                {% else %}
-                    <span class="badge badge-cancelled">取消済</span>
-                {% endif %}
+<section class="weekly-card">
+    <div class="weekly-card-title">今週の利用時間</div>
+    <div class="weekly-card-value">
+        <span class="weekly-card-used">{{ weekly_used_hours }}</span>
+        <span class="weekly-card-sep">/ {{ weekly_limit_hours }} h</span>
+    </div>
+    <div class="progress-track">
+        <div class="progress-fill" style="width: {{ weekly_pct }}%;"></div>
+    </div>
+    <div class="weekly-card-remaining">残り{{ weekly_remaining_text }}利用できます</div>
+</section>
+
+{% if active_log %}
+<section class="training-active-card">
+    <div class="training-active-label">トレーニング中</div>
+    <div class="training-active-desc">{{ active_log.r_start_time }} - {{ active_log.r_end_time }} の予約枠を利用中です</div>
+    <a href="{{ url_for('training_session', reservation_id=active_log.reservation_id) }}" class="btn btn-primary btn-large">退室画面へ</a>
+</section>
+{% endif %}
+
+<section class="today-card">
+    <div class="today-card-header">
+        <h2>本日の予約</h2>
+        {% if today_reservation %}<span class="badge badge-active">確定</span>{% endif %}
+    </div>
+    {% if today_reservation %}
+    <div class="today-card-time">{{ today_reservation.start_time }} – {{ today_reservation.end_time }}</div>
+    <p class="today-card-note">開始15分前に通知します</p>
+    <div class="today-card-actions">
+        {% if today_reservation.start_time <= now_time_str %}
+        <form method="post" action="{{ url_for('checkin', reservation_id=today_reservation.id) }}" class="inline-form-block">
+            <button type="submit" class="btn btn-primary">入室する</button>
+        </form>
+        {% else %}
+        <button type="button" class="btn btn-primary" disabled>入室する（開始前）</button>
+        {% endif %}
+        <form method="post" action="{{ url_for('cancel_reservation', reservation_id=today_reservation.id) }}"
+              class="inline-form-block js-confirm-cancel">
+            <button type="submit" class="btn btn-outline">取消</button>
+        </form>
+    </div>
+    {% else %}
+    <p class="no-reservations">本日の予約はありません。</p>
+    {% endif %}
+</section>
+
+<a href="{{ url_for('calendar_page') }}" class="btn btn-ghost-dashed">＋ 新しい予約を追加</a>
+
+<section class="upcoming-section">
+    <h2>今後の予約</h2>
+    {% if upcoming_reservations %}
+    <div class="upcoming-list">
+        {% for r in upcoming_reservations %}
+        <div class="upcoming-item">
+            <div class="upcoming-item-info">
+                <div class="upcoming-item-date">{{ r.date }}</div>
+                <div class="upcoming-item-time">{{ r.start_time }} - {{ r.end_time }}</div>
             </div>
-            {% if r.status == 'active' %}
-            <div class="reservation-card-actions">
-                {% if r.date == now_date_str and r.start_time <= now_time_str %}
-                <form method="post" action="{{ url_for('checkin', reservation_id=r.id) }}" class="inline-form">
-                    <button type="submit" class="btn btn-small btn-primary">入室</button>
-                </form>
-                {% elif r.date == now_date_str %}
-                <button type="button" class="btn btn-small btn-disabled" disabled>入室（開始前）</button>
-                {% endif %}
-                <form method="post" action="{{ url_for('cancel_reservation', reservation_id=r.id) }}"
-                      class="inline-form js-confirm-cancel">
-                    <button type="submit" class="btn btn-small btn-danger">取り消し</button>
-                </form>
-            </div>
-            {% endif %}
+            <form method="post" action="{{ url_for('cancel_reservation', reservation_id=r.id) }}" class="inline-form js-confirm-cancel">
+                <button type="submit" class="btn btn-small btn-outline">取消</button>
+            </form>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <p class="no-reservations">まだ予約がありません。カレンダーから日付を選んで予約してください。</p>
+    <p class="no-reservations">今後の予約はありません。</p>
     {% endif %}
 </section>
 {% endblock %}

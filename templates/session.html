@@ -6,25 +6,28 @@
      data-scheduled-end="{{ reservation.date }}T{{ reservation.end_time }}:00"
      data-checkout-url="{{ url_for('checkout', reservation_id=reservation.id) }}">
 
-    <h1>トレーニング中</h1>
-    <p class="session-info">
-        予約時間: {{ reservation.date }} {{ reservation.start_time }} - {{ reservation.end_time }}
-    </p>
+    <div class="session-status-label">利用中</div>
+    <p class="session-info">予約枠 {{ reservation.start_time }}–{{ reservation.end_time }}</p>
 
     <div id="session-panel" class="session-panel">
-        <div class="elapsed-label">経過時間</div>
-        <div id="elapsed-time" class="elapsed-time">00:00:00</div>
+        <div class="session-ring">
+            <div class="session-ring-inner">
+                <div class="elapsed-label">経過時間</div>
+                <div id="elapsed-time" class="elapsed-time">00:00:00</div>
+            </div>
+        </div>
 
         <div id="remaining-label" class="remaining-label">終了予定までの残り時間</div>
         <div id="remaining-time" class="remaining-time">--:--:--</div>
 
         <div id="overtime-warning" class="overtime-warning" hidden>
-            予約時間を超過しています！
+            予定時間を超過しています。超過時間は記録されます。
         </div>
     </div>
 
     <form method="post" action="{{ url_for('checkout', reservation_id=reservation.id) }}" id="checkout-form">
         <button type="submit" class="btn btn-danger btn-large">退室する</button>
     </form>
+    <p class="session-checkout-note">退室すると本日の利用時間が確定します</p>
 </div>
 {% endblock %}

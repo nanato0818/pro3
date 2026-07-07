@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}ログイン - トレーニングルーム予約{% endblock %}
 {% block content %}
+<div class="auth-page">
+<div>
 <h1>ログイン</h1>
 <form method="post" class="form-card">
     <label for="class_grade">クラス学年</label>
@@ -18,4 +20,6 @@
     <button type="submit" class="btn btn-primary">ログイン</button>
 </form>
 <p class="switch-link">初めての方は <a href="{{ url_for('register') }}">新規登録</a></p>
+</div>
+</div>
 {% endblock %}

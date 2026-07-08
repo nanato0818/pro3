@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}トレーニング中 - トレーニングルーム予約{% endblock %}
+{% block body_class %}session-page{% endblock %}
 {% block content %}
 <div id="session-root"
      data-checkin-at="{{ log.checkin_at }}"
      data-scheduled-end="{{ reservation.date }}T{{ reservation.end_time }}:00"
      data-checkout-url="{{ url_for('checkout', reservation_id=reservation.id) }}">
 
-    <div class="session-status-label">利用中</div>
-    <p class="session-info">予約枠 {{ reservation.start_time }}–{{ reservation.end_time }}</p>
+    <div class="session-status-label"><span class="stamp stamp-orange stamp-lg">入室中</span></div>
 
     <div id="session-panel" class="session-panel">
         <div class="session-ring">
@@ -21,12 +21,14 @@
         <div id="remaining-time" class="remaining-time">--:--:--</div>
 
         <div id="overtime-warning" class="overtime-warning" hidden>
-            予定時間を超過しています。超過時間は記録されます。
+            予定時間を超過しています
         </div>
     </div>
 
+    <p class="session-info">予約枠 {{ reservation.start_time }}–{{ reservation.end_time }}</p>
+
     <form method="post" action="{{ url_for('checkout', reservation_id=reservation.id) }}" id="checkout-form">
-        <button type="submit" class="btn btn-danger btn-large">退室する</button>
+        <button type="submit" class="btn btn-primary btn-large">退室する</button>
     </form>
     <p class="session-checkout-note">退室すると本日の利用時間が確定します</p>
 </div>

@@ -33,6 +33,9 @@ while _t <= _end:
 
 WEEKLY_LIMIT_MIN = 420  # 週7時間制限(分)
 
+# 曜日ラベル(月曜始まり)。home/reserve/reportの各所で使う。
+WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
+
 # 管理者登録コード(登録時にこのコードを入力すると管理者になる)
 # 本番環境では環境変数 ADMIN_CODE で別の値に上書きする
 ADMIN_CODE = os.environ.get("ADMIN_CODE", "pro3-admin-2026")
@@ -217,6 +220,64 @@ def find_full_slot(date_str, start_time, end_time):
     return None
 
 
+def get_day_availability(date_str, user_id):
+    """
+    予約画面の「空き状況リスト」用に、指定日を6:00〜22:00の1時間刻み(16行)に
+    分解し、各行のステータスを返す。
+    ステータス判定の優先順位:
+      1. 自分のactive予約がその1時間に重なっていれば "reserved"(予約済)
+      2. その1時間内のいずれかの15分スロットが定員到達していれば "full"(満室)
+      3. それ以外は "available"(空きあり)
+    find_full_slotと同じ規約(スロットは start <= t < end で数える。定員は
+    get_room_capacity())に合わせている。
+    戻り値は [{"start", "end", "status", "is_past"}, ...] のリスト。
+    """
+    db = get_db()
+    capacity = get_room_capacity()
+
+    now = now_jst()
+    is_today = date_str == now.strftime("%Y-%m-%d")
+    now_time_str = now.strftime("%H:%M")
+
+    active_reservations = db.execute(
+        """
+        SELECT user_id, start_time, end_time FROM reservations
+        WHERE date = ? AND status = 'active'
+        """,
+        (date_str,),
+    ).fetchall()
+
+    rows = []
+    for hour in range(6, 22):
+        row_start = f"{hour:02d}:00"
+        row_end = f"{hour + 1:02d}:00"
+
+        is_mine = any(
+            r["user_id"] == user_id and r["start_time"] < row_end and r["end_time"] > row_start
+            for r in active_reservations
+        )
+
+        if is_mine:
+            status = "reserved"
+        else:
+            slots = [t for t in TIME_SLOTS if row_start <= t < row_end]
+            is_full = False
+            for slot in slots:
+                count = sum(
+                    1 for r in active_reservations if r["start_time"] <= slot < r["end_time"]
+                )
+                if count >= capacity:
+                    is_full = True
+                    break
+            status = "full" if is_full else "available"
+
+        is_past = is_today and row_end <= now_time_str
+
+        rows.append({"start": row_start, "end": row_end, "status": status, "is_past": is_past})
+
+    return rows
+
+
 def get_weekly_limit_minutes(user_id, target_date_str):
     """
     target_date_strが属する週の上限時間(分)を返す。
@@ -370,6 +431,15 @@ def home():
     now_date_str = now.strftime("%Y-%m-%d")
     now_time_str = now.strftime("%H:%M")
 
+    # 上部の日付表示(例: 7月9日(水))と時間帯別の挨拶
+    date_display = f"{today.month}月{today.day}日({WEEKDAY_LABELS_JA[today.weekday()]})"
+    if 5 <= now.hour < 11:
+        greeting_word = "おはよう"
+    elif 11 <= now.hour < 18:
+        greeting_word = "こんにちは"
+    else:
+        greeting_word = "こんばんは"
+
     # 自分の予約一覧(日付順、active/cancelled両方)
     reservations = db.execute(
         """
@@ -459,6 +529,8 @@ def home():
     return render_template(
         "home.html",
         user=user,
+        date_display=date_display,
+        greeting_word=greeting_word,
         now_date_str=now_date_str,
         now_time_str=now_time_str,
         today_reservation=today_reservation,
@@ -583,7 +655,9 @@ def reserve(date_str):
                 "reserve.html",
                 date_str=date_str,
                 target_date=target_date,
+                weekday_label=WEEKDAY_LABELS_JA[target_date.weekday()],
                 time_slots=TIME_SLOTS,
+                availability=get_day_availability(date_str, user_id),
                 form=request.form,
             )
 
@@ -610,11 +684,16 @@ def reserve(date_str):
     penalty_min = WEEKLY_LIMIT_MIN - weekly_limit
     has_penalty = penalty_min > 0
 
+    availability = get_day_availability(date_str, user_id)
+    weekday_label = WEEKDAY_LABELS_JA[target_date.weekday()]
+
     return render_template(
         "reserve.html",
         date_str=date_str,
         target_date=target_date,
+        weekday_label=weekday_label,
         time_slots=TIME_SLOTS,
+        availability=availability,
         form={},
         remaining_text=format_minutes(remaining_min),
         has_penalty=has_penalty,
@@ -649,9 +728,6 @@ def cancel_reservation(reservation_id):
 # 週間レポート
 # ---------------------------------------------------------
 
-WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
-
-
 @app.route("/report")
 @login_required
 def report():
@@ -684,9 +760,20 @@ def report():
     daily_total = [daily_normal[i] + daily_overtime[i] for i in range(7)]
     daily_max = max(daily_total) if max(daily_total) > 0 else 1
 
+    # その週で最長の日(実績がある場合のみ)を1件だけ特定する
+    best_idx = None
+    best_val = 0
+    for i in range(7):
+        if daily_total[i] > best_val:
+            best_val = daily_total[i]
+            best_idx = i
+
     daily_bars = []
     for i in range(7):
         day = this_monday + timedelta(days=i)
+        is_best = best_idx == i and best_val > 0
+        is_zero = daily_total[i] == 0
+        bar_pct = 4 if is_zero else max(6, round(daily_total[i] / daily_max * 100, 1))
         daily_bars.append(
             {
                 "label": WEEKDAY_LABELS_JA[i],
@@ -696,9 +783,27 @@ def report():
                 "total_min": daily_total[i],
                 "normal_pct": round(daily_normal[i] / daily_max * 100, 1),
                 "overtime_pct": round(daily_overtime[i] / daily_max * 100, 1),
+                "bar_pct": bar_pct,
+                "is_best": is_best,
+                "is_zero": is_zero,
                 "total_text": format_minutes(daily_total[i]),
             }
         )
+
+    # 統計カード用: 今週の合計時間・利用日数
+    total_week_min = sum(daily_total)
+    usage_days = sum(1 for v in daily_total if v > 0)
+
+    # グラフ下の一言コメント
+    if best_idx is not None and best_val > 0:
+        report_comment = f"{WEEKDAY_LABELS_JA[best_idx]}曜が今週のベスト!この調子で頑張ろう"
+    else:
+        report_comment = "今週はまだ記録がありません"
+
+    report_period = (
+        f"{this_monday.month}/{this_monday.day} – "
+        f"{(this_monday + timedelta(days=6)).month}/{(this_monday + timedelta(days=6)).day}"
+    )
 
     # (b) 直近4週間(今週含む)の週合計(training_logsの実働分)
     weekly_bars = []
@@ -743,6 +848,10 @@ def report():
         daily_bars=daily_bars,
         weekly_bars=weekly_bars,
         weekly_limit_text=format_minutes(weekly_limit),
+        report_period=report_period,
+        report_comment=report_comment,
+        total_week_text=format_minutes(total_week_min),
+        usage_days=usage_days,
     )
 
 
@@ -903,6 +1012,30 @@ def admin_dashboard():
         (today_str,),
     ).fetchall()
 
+    # 現在入室中(checkout未了)のreservation_id集合。「出席カード」の在室スタンプ判定に使う。
+    in_room_reservation_ids = {
+        row["reservation_id"]
+        for row in db.execute(
+            "SELECT reservation_id FROM training_logs WHERE checkout_at IS NULL"
+        ).fetchall()
+    }
+
+    # 統計カード: 使用中(全体で入室中のログ数)/本日予約(本日のactive予約数)/本日の超過(分)
+    in_use_count = db.execute(
+        "SELECT COUNT(*) AS c FROM training_logs WHERE checkout_at IS NULL"
+    ).fetchone()["c"]
+
+    today_reservation_count = db.execute(
+        "SELECT COUNT(*) AS c FROM reservations WHERE date = ? AND status = 'active'",
+        (today_str,),
+    ).fetchone()["c"]
+
+    today_overtime_row = db.execute(
+        "SELECT COALESCE(SUM(overtime_min), 0) AS total FROM training_logs WHERE date = ?",
+        (today_str,),
+    ).fetchone()
+    today_overtime_min = today_overtime_row["total"] or 0
+
     # (b) ユーザー一覧(今週の予約時間合計を付与)
     all_users = db.execute(
         "SELECT * FROM users ORDER BY class_grade ASC, attendance_no ASC"
@@ -926,6 +1059,10 @@ def admin_dashboard():
     return render_template(
         "admin.html",
         today_reservations=today_reservations,
+        in_room_reservation_ids=in_room_reservation_ids,
+        in_use_count=in_use_count,
+        today_reservation_count=today_reservation_count,
+        today_overtime_min=today_overtime_min,
         users_with_stats=users_with_stats,
         training_logs=training_logs,
         format_minutes=format_minutes,

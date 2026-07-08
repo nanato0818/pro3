@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}予約 - トレーニングルーム予約{% endblock %}
 {% block content %}
-<h1>予約カレンダー</h1>
+<h1><span class="marker">予約カレンダー</span></h1>
 
 <section class="calendar-section">
     <div class="calendar-nav">
@@ -45,7 +45,7 @@
 </section>
 
 <section class="reservation-list-section">
-    <h2>自分の予約一覧</h2>
+    <h2><span class="marker">自分の予約一覧</span></h2>
     {% if reservations %}
     <div class="reservation-cards">
         {% for r in reservations %}
@@ -56,9 +56,9 @@
                     <div class="reservation-card-time">{{ r.start_time }} - {{ r.end_time }}</div>
                 </div>
                 {% if r.status == 'active' %}
-                    <span class="badge badge-active">予約中</span>
+                    <span class="stamp stamp-orange">予約中</span>
                 {% else %}
-                    <span class="badge badge-cancelled">取消済</span>
+                    <span class="stamp stamp-muted">取消済</span>
                 {% endif %}
             </div>
             {% if r.status == 'active' %}

@@ -1,30 +1,39 @@
 {% extends "base.html" %}
 {% block title %}週間レポート - トレーニングルーム予約{% endblock %}
 {% block content %}
-<h1>週間レポート</h1>
+<h1><span class="marker">今週の利用記録</span></h1>
+<p class="report-period">{{ report_period }}</p>
+
+<div class="stats-row">
+    <div class="stat-card stat-card-green">
+        <div class="stat-card-label">合計時間</div>
+        <div class="stat-card-value">{{ total_week_text }}</div>
+    </div>
+    <div class="stat-card stat-card-orange">
+        <div class="stat-card-label">利用日数</div>
+        <div class="stat-card-value">{{ usage_days }}日</div>
+    </div>
+</div>
 
 <section class="admin-section report-section">
-    <h2>今週のトレーニング時間（日別）</h2>
+    <h2><span class="marker">今週のトレーニング時間（日別）</span></h2>
     <div class="report-daily-chart">
         {% for bar in daily_bars %}
         <div class="report-daily-bar-col">
             <div class="report-daily-bar-value">{{ bar.total_text }}</div>
             <div class="report-daily-bar-track">
-                <div class="report-daily-bar-overtime" style="height: {{ bar.overtime_pct }}%;"></div>
-                <div class="report-daily-bar-normal" style="height: {{ bar.normal_pct }}%;"></div>
+                <div class="report-daily-bar-fill {% if bar.is_zero %}is-zero{% elif bar.is_best %}is-best{% else %}is-normal{% endif %}"
+                     style="height: {{ bar.bar_pct }}%;"></div>
             </div>
             <div class="report-daily-bar-label">{{ bar.label }}</div>
         </div>
         {% endfor %}
     </div>
-    <p class="report-legend">
-        <span class="report-legend-swatch report-legend-normal"></span>通常時間
-        <span class="report-legend-swatch report-legend-overtime"></span>超過時間
-    </p>
+    <p class="report-comment">{{ report_comment }}</p>
 </section>
 
 <section class="admin-section report-section">
-    <h2>直近4週間の週合計</h2>
+    <h2><span class="marker">直近4週間の週合計</span></h2>
     <p class="report-limit-note">今週の予約上限: <strong>{{ weekly_limit_text }}</strong></p>
     <div class="report-weekly-chart">
         {% for bar in weekly_bars %}

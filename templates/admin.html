@@ -1,17 +1,32 @@
 {% extends "base.html" %}
 {% block title %}管理者ダッシュボード - トレーニングルーム予約{% endblock %}
 {% block content %}
-<h1>管理者ダッシュボード</h1>
+<h1><span class="marker">管理者ダッシュボード</span></h1>
+
+<div class="stats-row">
+    <div class="stat-card stat-card-green">
+        <div class="stat-card-label">使用中</div>
+        <div class="stat-card-value">{{ in_use_count }}</div>
+    </div>
+    <div class="stat-card stat-card-orange">
+        <div class="stat-card-label">本日予約</div>
+        <div class="stat-card-value">{{ today_reservation_count }}</div>
+    </div>
+    <div class="stat-card stat-card-red">
+        <div class="stat-card-label">本日の超過</div>
+        <div class="stat-card-value">{{ today_overtime_min }}分</div>
+    </div>
+</div>
 
 <nav class="admin-tabs">
-    <a href="#admin-reservations" class="admin-tab-link">本日の予約</a>
+    <a href="#admin-reservations" class="admin-tab-link">出席カード</a>
     <a href="#admin-users" class="admin-tab-link">ユーザー一覧</a>
     <a href="#admin-logs" class="admin-tab-link">トレーニング実績</a>
     <a href="#admin-settings" class="admin-tab-link">設定</a>
 </nav>
 
 <section id="admin-reservations" class="admin-section">
-    <h2>本日の全予約一覧</h2>
+    <h2><span class="marker">出席カード</span></h2>
     {% if today_reservations %}
     <div class="reservation-cards">
         {% for r in today_reservations %}
@@ -22,9 +37,13 @@
                     <div class="reservation-card-time">{{ r.start_time }} - {{ r.end_time }}</div>
                 </div>
                 {% if r.status == 'active' %}
-                    <span class="badge badge-active">予約中</span>
+                    {% if r.id in in_room_reservation_ids %}
+                    <span class="stamp stamp-green">在室</span>
+                    {% else %}
+                    <span class="stamp stamp-orange">予約中</span>
+                    {% endif %}
                 {% else %}
-                    <span class="badge badge-cancelled">取消済</span>
+                    <span class="stamp stamp-muted">取消済</span>
                 {% endif %}
             </div>
             {% if r.status == 'active' %}
@@ -44,7 +63,7 @@
 </section>
 
 <section id="admin-users" class="admin-section">
-    <h2>ユーザー一覧</h2>
+    <h2><span class="marker">ユーザー一覧</span></h2>
     <div class="admin-user-cards">
         {% for row in users_with_stats %}
         {% set u = row.user %}
@@ -55,7 +74,7 @@
                     <div class="reservation-card-time">{{ u.class_grade }} / 出席番号{{ u.attendance_no }}</div>
                 </div>
                 {% if u.is_admin %}
-                    <span class="badge badge-admin">管理者</span>
+                    <span class="chip chip-secondary">管理者</span>
                 {% endif %}
             </div>
             <div class="admin-user-card-stats">
@@ -76,7 +95,7 @@
 </section>
 
 <section id="admin-logs" class="admin-section">
-    <h2>トレーニング実績</h2>
+    <h2><span class="marker">トレーニング実績</span></h2>
     <a href="{{ url_for('export_csv') }}" class="btn btn-secondary btn-small">CSVダウンロード</a>
     {% if training_logs %}
     <div class="reservation-cards">
@@ -105,7 +124,7 @@
 </section>
 
 <section id="admin-settings" class="admin-section">
-    <h2>設定</h2>
+    <h2><span class="marker">設定</span></h2>
     <form method="post" action="{{ url_for('admin_settings') }}" class="admin-settings-form">
         <label for="room_capacity">同時間帯の定員（人数）</label>
         <input type="number" name="room_capacity" id="room_capacity" min="1" step="1" value="{{ room_capacity }}" required>

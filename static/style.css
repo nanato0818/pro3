@@ -1,36 +1,51 @@
-/* トレーニングルーム予約システム - フェーズ3 ダークUI
-   モバイルアプリ風・タブナビゲーション構成。
+/* トレーニングルーム予約システム - フェーズ3 「出席カード・スタンプ」UI
+   紙の出席カード + ハンコ(スタンプ)の世界観。
    max-width 480pxの中央カラムでモバイルファースト。 */
 
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
 
 :root {
-    /* カラーパレット(ダークテーマ) */
-    --color-bg: #0d1117;
-    --color-card: #161d27;
-    --color-subcard: #1c2532;
-    --color-border: #263041;
+    /* カラーパレット(クリーム紙テーマ) */
+    --color-bg: #efe6d2;
+    --color-card: #fffdf7;
+    --color-subcard: #f6efdd;
+    --color-border: #e2d7bd;
 
-    --color-text: #e6edf3;
-    --color-muted: #8b949e;
+    --color-text: #2b2620;
+    --color-muted: #8a8071;
 
-    --color-accent: #10b981;
-    --color-accent-hover: #0ea371;
-    --color-accent-bg: rgba(16, 185, 129, 0.13);
-    --color-accent-text-on: #04140f;
+    /* プライマリ: 藍色(1cの紙の世界観に合わせた深い青) */
+    --color-accent: #2b4c6f;
+    --color-accent-hover: #223d5a;
+    --color-accent-bg: rgba(43, 76, 111, 0.12);
+    --color-accent-text-on: #fffdf7;
+    --color-accent-shadow: #1a3049;
 
-    --color-danger: #b3312f;
-    --color-danger-hover: #992b29;
-    --color-danger-bg: rgba(179, 49, 47, 0.15);
-    --color-danger-text: #f85149;
+    /* セカンダリ: 深緑 */
+    --color-secondary: #3b6e5e;
+    --color-secondary-hover: #2f5a4d;
+    --color-secondary-bg: rgba(59, 110, 94, 0.12);
+
+    /* 警告: レンガ赤 */
+    --color-danger: #c43d2e;
+    --color-danger-hover: #ad3526;
+    --color-danger-bg: rgba(196, 61, 46, 0.12);
+    --color-danger-text: #c43d2e;
 
     --color-primary: var(--color-accent);
     --color-primary-dark: var(--color-accent-hover);
 
-    --radius: 16px;
-    --radius-sm: 12px;
-    --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
-    --tabbar-height: 64px;
+    /* マーカー風ハイライト(青系) */
+    --color-highlight: #a9c4dc;
+
+    /* ダーク画面(セッション画面専用) */
+    --color-dark-bg: #2b2620;
+    --color-dark-text: #f3eee2;
+
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow-card: 0 2px 8px rgba(43, 38, 32, 0.10), 0 1px 2px rgba(43, 38, 32, 0.06);
+    --tabbar-height: 68px;
 }
 
 * {
@@ -44,6 +59,89 @@ body {
     color: var(--color-text);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+}
+
+/* セッション画面専用のダーク切り替え(bodyにクラス付与でCSS変数を上書き) */
+body.session-page {
+    --color-bg: var(--color-dark-bg);
+    --color-text: var(--color-dark-text);
+}
+
+/* マーカー風ハイライト(見出しに敷く半透明の蛍光マーカー帯) */
+.marker {
+    background-image: linear-gradient(
+        transparent 58%,
+        var(--color-highlight) 58%,
+        var(--color-highlight) 90%,
+        transparent 90%
+    );
+    padding: 0 2px;
+}
+
+/* ハンコ風スタンプバッジ(この案の核) */
+.stamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    font-family: "Zen Maru Gothic", "Noto Sans JP", sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    letter-spacing: 0.02em;
+    transform: rotate(-8deg);
+    padding: 2px;
+}
+
+.stamp-orange {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.stamp-green {
+    color: var(--color-secondary);
+    border-color: var(--color-secondary);
+}
+
+.stamp-muted {
+    color: var(--color-muted);
+    border-color: var(--color-muted);
+}
+
+.stamp-sm {
+    width: 42px;
+    height: 42px;
+    font-size: 0.58rem;
+}
+
+.stamp-lg {
+    width: 74px;
+    height: 74px;
+    font-size: 0.95rem;
+}
+
+/* 汎用の小チップ(スタンプではない補助タグ。例: 管理者ラベル) */
+.chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: var(--color-subcard);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    white-space: nowrap;
+}
+
+.chip-secondary {
+    color: var(--color-secondary);
+    border-color: var(--color-secondary);
+    background: var(--color-secondary-bg);
 }
 
 /* ヘッダー(薄型) */
@@ -67,6 +165,7 @@ body {
 .app-title {
     color: var(--color-text);
     text-decoration: none;
+    font-family: "Zen Maru Gothic", sans-serif;
     font-weight: 700;
     font-size: 1rem;
     letter-spacing: 0.02em;
@@ -91,20 +190,22 @@ body {
 }
 
 h1 {
-    font-size: 1.2rem;
-    margin: 8px 0 16px;
+    font-family: "Zen Maru Gothic", sans-serif;
+    font-size: 1.25rem;
+    margin: 8px 0 18px;
     font-weight: 700;
     color: var(--color-text);
 }
 
 h2 {
+    font-family: "Zen Maru Gothic", sans-serif;
     font-size: 1rem;
     margin: 0;
     font-weight: 700;
     color: var(--color-text);
 }
 
-/* 下部固定タブバー */
+/* 下部固定タブバー(漢字1文字+ラベル) */
 .tab-bar {
     position: fixed;
     left: 0;
@@ -119,6 +220,8 @@ h2 {
     border-top: 1px solid var(--color-border);
     max-width: 480px;
     margin: 0 auto;
+    padding: 8px 6px;
+    gap: 6px;
 }
 
 .tab-item {
@@ -127,26 +230,28 @@ h2 {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 2px;
     color: var(--color-muted);
     text-decoration: none;
-    font-size: 0.68rem;
-    font-weight: 500;
-    transition: color 0.15s ease;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.tab-item svg {
-    width: 22px;
-    height: 22px;
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+.tab-kanji {
+    font-family: "Zen Maru Gothic", sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.tab-label {
+    font-size: 0.6rem;
+    font-weight: 500;
 }
 
 .tab-item.is-active {
-    color: var(--color-accent);
+    background: var(--color-secondary);
+    color: var(--color-card);
 }
 
 .tab-item:hover {
@@ -154,10 +259,10 @@ h2 {
 }
 
 .tab-item.is-active:hover {
-    color: var(--color-accent);
+    color: var(--color-card);
 }
 
-/* フラッシュメッセージ(トースト風) */
+/* フラッシュメッセージ(紙のメモ風) */
 .flash-container {
     margin-bottom: 16px;
     display: flex;
@@ -166,12 +271,14 @@ h2 {
 }
 
 .flash {
+    background: var(--color-card);
     padding: 12px 16px;
     border-radius: var(--radius-sm);
     font-size: 0.9rem;
     font-weight: 500;
+    color: var(--color-text);
     box-shadow: var(--shadow-card);
-    border-left: 4px solid transparent;
+    border-left: 4px solid var(--color-accent);
     animation: toast-in 0.25s ease;
 }
 
@@ -181,14 +288,11 @@ h2 {
 }
 
 .flash-success {
-    background: var(--color-accent-bg);
-    color: var(--color-text);
-    border-left-color: var(--color-accent);
+    border-left-color: var(--color-secondary);
 }
 
 .flash-error {
-    background: var(--color-danger-bg);
-    color: var(--color-text);
+    /* エラーは視認性のため縦帯を赤のまま残す */
     border-left-color: var(--color-danger);
 }
 
@@ -270,36 +374,42 @@ h2 {
     flex-direction: column;
 }
 
-/* ボタン */
+/* ボタン(全幅の丸ピル+押しボタン感) */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 20px;
+    padding: 12px 22px;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: 999px;
+    font-family: "Zen Maru Gothic", "Noto Sans JP", sans-serif;
     font-size: 0.95rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     text-decoration: none;
     text-align: center;
     margin-top: 14px;
     min-height: 48px;
     font-family: inherit;
-    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    transition: background 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .btn:active {
-    transform: scale(0.98);
+    transform: translateY(2px);
 }
 
 .btn-primary {
     background: var(--color-accent);
     color: var(--color-accent-text-on);
+    box-shadow: 0 4px 0 var(--color-accent-shadow);
 }
 
 .btn-primary:hover {
     background: var(--color-accent-hover);
+}
+
+.btn-primary:active {
+    box-shadow: 0 2px 0 var(--color-accent-shadow);
 }
 
 .btn-secondary {
@@ -318,7 +428,7 @@ h2 {
 }
 
 .btn-secondary:hover {
-    background: #232d3b;
+    background: var(--color-border);
 }
 
 .btn-outline {
@@ -334,7 +444,7 @@ h2 {
 
 .btn-danger {
     background: var(--color-danger);
-    color: #ffffff;
+    color: #fffdf7;
 }
 
 .btn-danger:hover {
@@ -343,8 +453,9 @@ h2 {
 
 .btn-large {
     width: 100%;
-    padding: 18px;
-    font-size: 1.1rem;
+    padding: 0 18px;
+    height: 52px;
+    font-size: 1.05rem;
     margin-top: 20px;
 }
 
@@ -353,6 +464,7 @@ h2 {
     font-size: 0.8rem;
     margin-top: 0;
     min-height: 36px;
+    box-shadow: none;
 }
 
 .btn-disabled {
@@ -366,6 +478,7 @@ h2 {
     background: var(--color-subcard);
     color: var(--color-muted);
     cursor: not-allowed;
+    box-shadow: none;
 }
 
 .btn-nav {
@@ -379,7 +492,7 @@ h2 {
 }
 
 .btn-nav:hover {
-    background: #232d3b;
+    background: var(--color-border);
     border-color: var(--color-accent);
 }
 
@@ -393,7 +506,8 @@ h2 {
     color: var(--color-accent);
     border: 2px dashed var(--color-border);
     border-radius: var(--radius-sm);
-    font-weight: 600;
+    font-family: "Zen Maru Gothic", sans-serif;
+    font-weight: 700;
     font-size: 0.95rem;
     min-height: 48px;
     text-decoration: none;
@@ -416,53 +530,78 @@ h2 {
     flex: 1;
 }
 
-/* 挨拶ブロック */
-.greeting-block {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
+/* ホーム上部: 日付+挨拶ブロック */
+.home-header {
+    margin-bottom: 18px;
 }
 
-.greeting-hello {
+.home-date {
     font-size: 0.85rem;
     color: var(--color-muted);
+    font-weight: 500;
 }
 
-.greeting-name {
-    font-size: 1.25rem;
-    font-weight: 700;
+.home-greeting {
+    margin-top: 4px;
+    font-size: 1.5rem;
+    font-weight: 900;
+    font-family: "Zen Maru Gothic", sans-serif;
     color: var(--color-text);
-    margin-top: 2px;
 }
 
-.greeting-class {
+.home-greeting-name {
+    color: var(--color-accent);
+}
+
+.home-class {
+    margin-top: 4px;
     font-size: 0.85rem;
     color: var(--color-muted);
-    margin-top: 2px;
 }
 
-.avatar-circle {
-    flex-shrink: 0;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: var(--color-accent-bg);
-    color: var(--color-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    font-weight: 700;
-}
-
-/* 今週の利用時間カード */
+/* 今週の利用時間カード(紙の束を重ねた風) */
 .weekly-card {
+    position: relative;
     background: var(--color-card);
     border-radius: var(--radius);
     padding: 18px 20px;
     box-shadow: var(--shadow-card);
-    margin-bottom: 16px;
+    margin-bottom: 22px;
+}
+
+.weekly-card::before,
+.weekly-card::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -6px;
+    height: 14px;
+    background: var(--color-card);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow-card);
+    z-index: -1;
+}
+
+.weekly-card::before {
+    bottom: -5px;
+    left: 14px;
+    right: 14px;
+    opacity: 0.75;
+}
+
+.weekly-card::after {
+    bottom: -10px;
+    left: 20px;
+    right: 20px;
+    opacity: 0.5;
+}
+
+.weekly-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
 }
 
 .weekly-card-title {
@@ -472,21 +611,21 @@ h2 {
 }
 
 .weekly-card-value {
-    margin-top: 6px;
     display: flex;
     align-items: baseline;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 .weekly-card-used {
-    font-size: 2rem;
+    font-size: 1.9rem;
     font-weight: 900;
     color: var(--color-text);
     font-variant-numeric: tabular-nums;
 }
 
 .weekly-card-sep {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--color-muted);
     font-variant-numeric: tabular-nums;
 }
@@ -494,7 +633,7 @@ h2 {
 .progress-track {
     margin-top: 12px;
     width: 100%;
-    height: 8px;
+    height: 9px;
     border-radius: 999px;
     background: var(--color-subcard);
     overflow: hidden;
@@ -502,7 +641,7 @@ h2 {
 
 .progress-fill {
     height: 100%;
-    background: var(--color-accent);
+    background: var(--color-secondary);
     border-radius: 999px;
     transition: width 0.3s ease;
 }
@@ -513,10 +652,16 @@ h2 {
     color: var(--color-muted);
 }
 
+.weekly-card-hint {
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+}
+
 /* トレーニング中カード(入室後の退室導線) */
 .training-active-card {
-    background: var(--color-accent-bg);
-    border: 1px solid var(--color-accent);
+    background: var(--color-secondary-bg);
+    border: 1px solid var(--color-secondary);
     border-radius: var(--radius);
     padding: 18px 20px;
     margin-bottom: 16px;
@@ -525,7 +670,7 @@ h2 {
 .training-active-label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: var(--color-accent);
+    color: var(--color-secondary);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -537,7 +682,7 @@ h2 {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-accent);
+    background: var(--color-secondary);
     animation: dot-pulse 1.4s ease-in-out infinite;
 }
 
@@ -563,13 +708,13 @@ h2 {
 
 .today-card-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
 }
 
 .today-card-time {
     margin-top: 14px;
-    font-size: 1.8rem;
+    font-size: 2rem;
     font-weight: 900;
     color: var(--color-text);
     font-variant-numeric: tabular-nums;
@@ -663,7 +808,7 @@ h2 {
 }
 
 .calendar-table th.sat {
-    color: #6fa8ff;
+    color: var(--color-secondary);
 }
 
 .calendar-table th.sun {
@@ -679,20 +824,18 @@ h2 {
 }
 
 .calendar-cell.other-month {
-    color: #3a4657;
+    color: var(--color-border);
     background: transparent;
 }
 
 .calendar-cell.is-past {
-    color: #3a4657;
+    color: var(--color-border);
     background: transparent;
 }
 
 .calendar-cell.is-today {
-    background: var(--color-accent-bg);
     font-weight: 900;
-    box-shadow: inset 0 0 0 2px var(--color-accent);
-    border-radius: var(--radius-sm);
+    background: transparent;
 }
 
 .day-link {
@@ -704,9 +847,14 @@ h2 {
     height: 100%;
     color: var(--color-text);
     text-decoration: none;
-    border-radius: var(--radius-sm);
+    border-radius: 50%;
     font-weight: 500;
     transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* 今日は「手描きで丸を付けた」風のオレンジ円(塗りつぶさずアウトラインのみ) */
+.calendar-cell.is-today .day-link {
+    border: 2.5px solid var(--color-accent);
 }
 
 .day-link:hover {
@@ -726,7 +874,7 @@ h2 {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: var(--color-accent);
+    background: var(--color-secondary);
 }
 
 .day-link:hover .day-dot {
@@ -765,7 +913,7 @@ h2 {
 }
 
 .reservation-card.is-cancelled {
-    opacity: 0.55;
+    opacity: 0.6;
 }
 
 .reservation-card-top {
@@ -806,30 +954,12 @@ h2 {
     padding: 24px 12px;
 }
 
-.badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.badge-active {
-    background: var(--color-accent-bg);
-    color: var(--color-accent);
-}
-
-.badge-cancelled {
-    background: var(--color-subcard);
-    color: var(--color-muted);
-}
-
 .remaining-note {
-    background: var(--color-subcard);
+    background: var(--color-card);
     color: var(--color-text);
     padding: 12px 16px;
     border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card);
     font-size: 0.9rem;
     max-width: 440px;
     margin: 0 auto 14px;
@@ -853,29 +983,80 @@ h2 {
     color: var(--color-danger-text);
 }
 
-/* トレーニングセッション画面 */
+/* 空き状況リスト(予約画面) */
+.availability-section {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-card);
+}
+
+.availability-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.availability-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--color-subcard);
+}
+
+.availability-row.is-full {
+    background: var(--color-border);
+}
+
+.availability-row.is-past {
+    opacity: 0.45;
+}
+
+.availability-time {
+    font-size: 0.88rem;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.availability-status {
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.availability-available {
+    color: var(--color-secondary);
+}
+
+.availability-full {
+    color: var(--color-muted);
+}
+
+.availability-stamp {
+    width: 48px;
+    height: 48px;
+    font-size: 0.6rem;
+}
+
+/* トレーニングセッション画面(ダーク) */
 .session-status-label {
     text-align: center;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--color-accent);
-    letter-spacing: 0.04em;
+    margin-bottom: 8px;
 }
 
 .session-info {
     color: var(--color-muted);
     text-align: center;
-    margin-top: 4px;
+    margin-top: 16px;
     font-variant-numeric: tabular-nums;
 }
 
 .session-panel {
-    background: var(--color-card);
-    border-radius: var(--radius);
-    padding: 32px 20px;
     text-align: center;
-    box-shadow: var(--shadow-card);
-    margin-top: 16px;
+    margin-top: 8px;
     transition: background 0.4s ease, box-shadow 0.4s ease;
 }
 
@@ -912,7 +1093,7 @@ h2 {
 }
 
 .elapsed-time {
-    font-size: 2rem;
+    font-size: 2.1rem;
     font-weight: 900;
     font-variant-numeric: tabular-nums;
     font-family: "Noto Sans JP", "Segoe UI", monospace;
@@ -929,12 +1110,19 @@ h2 {
 
 .overtime-warning {
     margin-top: 18px;
-    padding: 12px;
-    background: var(--color-danger-bg);
-    color: var(--color-danger-text);
-    border-radius: var(--radius-sm);
+    display: inline-block;
+    padding: 10px 22px;
+    background: var(--color-danger);
+    color: #fffdf7;
+    border-radius: 999px;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+}
+
+/* [hidden]属性はUAスタイルのdisplay:noneだが、上のクラスにdisplayを明示しているため
+   同じ詳細度でも著者スタイルが勝ってしまい隠れない。ここで明示的に上書きする。 */
+.overtime-warning[hidden] {
+    display: none;
 }
 
 .session-checkout-note {
@@ -944,11 +1132,7 @@ h2 {
     margin-top: 8px;
 }
 
-/* 超過時: リングとパネルが赤系に変わり、パルスで警告を強調 */
-.session-panel.is-overtime {
-    box-shadow: 0 0 0 2px var(--color-danger) inset, 0 0 28px var(--color-danger-bg);
-}
-
+/* 超過時: リングが赤系に変わり、パルスで警告を強調 */
 .session-panel.is-overtime .session-ring {
     border-color: var(--color-danger);
     animation: overtime-pulse 1.6s ease-in-out infinite;
@@ -963,8 +1147,8 @@ h2 {
 }
 
 @keyframes overtime-pulse {
-    0%, 100% { box-shadow: 0 0 0 10px var(--color-danger); }
-    50% { box-shadow: 0 0 0 10px var(--color-danger-hover); }
+    0%, 100% { box-shadow: 0 0 0 6px var(--color-danger-bg); }
+    50% { box-shadow: 0 0 0 12px transparent; }
 }
 
 /* レスポンシブ(タブレット・PC以上でも縦長のアプリ風カラムを維持) */
@@ -972,6 +1156,48 @@ h2 {
     .calendar-cell {
         height: 56px;
     }
+}
+
+/* 統計カード(レポート・管理者ダッシュボード共通) */
+.stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: var(--color-card);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-card);
+    flex: 1 1 120px;
+}
+
+.stat-card-label {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    font-weight: 600;
+}
+
+.stat-card-value {
+    margin-top: 6px;
+    font-size: 1.7rem;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+}
+
+.stat-card-green .stat-card-value {
+    color: var(--color-secondary);
+}
+
+.stat-card-orange .stat-card-value {
+    color: var(--color-accent);
+}
+
+.stat-card-red .stat-card-value {
+    color: var(--color-danger);
 }
 
 /* 管理者ダッシュボード */
@@ -1046,11 +1272,6 @@ h2 {
     color: var(--color-text);
 }
 
-.badge-admin {
-    background: var(--color-accent-bg);
-    color: var(--color-accent);
-}
-
 .reservation-card.is-overtime-row {
     background: var(--color-danger-bg);
     border-color: var(--color-danger);
@@ -1098,6 +1319,13 @@ h2 {
 }
 
 /* 週間レポート */
+.report-period {
+    margin: -12px 0 18px;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+}
+
 .report-section h2 {
     margin-bottom: 16px;
 }
@@ -1136,20 +1364,26 @@ h2 {
     flex-direction: column;
     justify-content: flex-end;
     background: var(--color-subcard);
-    border-radius: 6px 6px 0 0;
+    border-radius: 999px 999px 0 0;
     overflow: hidden;
 }
 
-.report-daily-bar-normal {
+.report-daily-bar-fill {
     width: 100%;
-    background: var(--color-accent);
-    min-height: 0;
+    min-height: 4px;
+    border-radius: 999px 999px 0 0;
 }
 
-.report-daily-bar-overtime {
-    width: 100%;
-    background: var(--color-danger);
-    min-height: 0;
+.report-daily-bar-fill.is-normal {
+    background: var(--color-secondary);
+}
+
+.report-daily-bar-fill.is-best {
+    background: var(--color-accent);
+}
+
+.report-daily-bar-fill.is-zero {
+    background: var(--color-border);
 }
 
 .report-daily-bar-label {
@@ -1159,30 +1393,12 @@ h2 {
     margin-top: 6px;
 }
 
-.report-legend {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 16px;
-    font-size: 0.8rem;
-    color: var(--color-muted);
-}
-
-.report-legend-swatch {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    margin-right: 4px;
-    vertical-align: middle;
-}
-
-.report-legend-normal {
-    background: var(--color-accent);
-}
-
-.report-legend-overtime {
-    background: var(--color-danger);
+.report-comment {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
 }
 
 .report-limit-note {
@@ -1231,7 +1447,7 @@ h2 {
 }
 
 .report-weekly-bar-fill.is-this-week {
-    background: var(--color-accent);
+    background: var(--color-secondary);
 }
 
 .report-weekly-bar-value {

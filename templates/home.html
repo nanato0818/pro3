@@ -3,20 +3,19 @@
 {% block content %}
 <script type="application/json" id="reminder-data">{{ reminder_data_json | safe }}</script>
 
-<section class="greeting-block">
-    <div class="greeting-text">
-        <div class="greeting-hello">こんにちは</div>
-        <div class="greeting-name">{{ user.name }}さん</div>
-        <div class="greeting-class">{{ user.class_grade }}・{{ user.attendance_no }}番</div>
-    </div>
-    <div class="avatar-circle">{{ user.name[0] }}</div>
+<section class="home-header">
+    <div class="home-date">{{ date_display }}</div>
+    <div class="home-greeting">{{ greeting_word }}、<span class="home-greeting-name">{{ user.name }}</span>さん</div>
+    <div class="home-class">{{ user.class_grade }}・{{ user.attendance_no }}番</div>
 </section>
 
 <section class="weekly-card">
-    <div class="weekly-card-title">今週の利用時間</div>
-    <div class="weekly-card-value">
-        <span class="weekly-card-used">{{ weekly_used_hours }}</span>
-        <span class="weekly-card-sep">/ {{ weekly_limit_hours }} h</span>
+    <div class="weekly-card-head">
+        <div class="weekly-card-title"><span class="marker">今週の利用時間</span></div>
+        <div class="weekly-card-value">
+            <span class="weekly-card-used">{{ weekly_used_hours }}</span>
+            <span class="weekly-card-sep">/ {{ weekly_limit_hours }} h</span>
+        </div>
     </div>
     <div class="progress-track">
         <div class="progress-fill" style="width: {{ weekly_pct }}%;"></div>
@@ -35,8 +34,8 @@
 
 <section class="today-card">
     <div class="today-card-header">
-        <h2>本日の予約</h2>
-        {% if today_reservation %}<span class="badge badge-active">確定</span>{% endif %}
+        <h2><span class="marker">本日の予約</span></h2>
+        {% if today_reservation %}<span class="stamp stamp-orange">本日</span>{% endif %}
     </div>
     {% if today_reservation %}
     <div class="today-card-time">{{ today_reservation.start_time }} – {{ today_reservation.end_time }}</div>
@@ -72,7 +71,7 @@
 <a href="{{ url_for('calendar_page') }}" class="btn btn-ghost-dashed">＋ 新しい予約を追加</a>
 
 <section class="upcoming-section">
-    <h2>今後の予約</h2>
+    <h2><span class="marker">今後の予約</span></h2>
     {% if upcoming_reservations %}
     <div class="upcoming-list">
         {% for r in upcoming_reservations %}

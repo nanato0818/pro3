@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}予約 - トレーニングルーム予約{% endblock %}
 {% block content %}
-<h1>{{ target_date.strftime('%Y年%m月%d日') }} の予約</h1>
+<h1><span class="marker">{{ target_date.strftime('%Y年%m月%d日') }}（{{ weekday_label }}）の予約</span></h1>
 
 {% if remaining_text %}
 <p class="remaining-note">今週の残り予約可能時間: <strong>{{ remaining_text }}</strong></p>
@@ -10,6 +10,24 @@
 {% if has_penalty %}
 <p class="penalty-note">今週の上限: <strong>{{ weekly_limit_text }}</strong>（先週の超過{{ penalty_text }}を差し引き）</p>
 {% endif %}
+
+<section class="availability-section">
+    <h2><span class="marker">{{ target_date.month }}月{{ target_date.day }}日（{{ weekday_label }}）の空き状況</span></h2>
+    <div class="availability-list">
+        {% for row in availability %}
+        <div class="availability-row {% if row.status == 'full' %}is-full{% endif %} {% if row.is_past %}is-past{% endif %}">
+            <span class="availability-time">{{ row.start }} – {{ row.end }}</span>
+            {% if row.status == 'reserved' %}
+            <span class="stamp stamp-orange stamp-sm availability-stamp">予約済</span>
+            {% elif row.status == 'full' %}
+            <span class="availability-status availability-full">満室</span>
+            {% else %}
+            <span class="availability-status availability-available">空きあり</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
 
 <form method="post" class="form-card">
     <div class="time-slot-row">

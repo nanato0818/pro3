@@ -45,9 +45,10 @@
          data-end-at="{{ today_reservation.date }}T{{ today_reservation.end_time }}:00"
          data-end-label="{{ today_reservation.end_time }}"
          data-checkin-url="{{ url_for('checkin', reservation_id=today_reservation.id) }}"
-         data-checked-out="{{ '1' if today_reservation_checked_out else '0' }}">
+         data-checked-out="{{ '1' if today_reservation_checked_out else '0' }}"
+         data-early-min="{{ checkin_early_min }}">
         <div id="today-checkin-slot">
-            {% if today_reservation.start_time <= now_time_str and now_time_str < today_reservation.end_time %}
+            {% if today_reservation_early_time_str <= now_time_str and now_time_str < today_reservation.end_time %}
             <form method="post" action="{{ url_for('checkin', reservation_id=today_reservation.id) }}" class="inline-form-block">
                 <button type="submit" class="btn btn-primary">{% if today_reservation_checked_out %}再入室{% else %}入室する{% endif %}</button>
             </form>

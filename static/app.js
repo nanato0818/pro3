@@ -159,6 +159,8 @@ function initTodayCard(container) {
     const endLabel = container.dataset.endLabel;
     const checkinUrl = container.dataset.checkinUrl;
     const checkedOut = container.dataset.checkedOut === "1";
+    const earlyMin = parseInt(container.dataset.earlyMin, 10) || 0;
+    const earlyAt = new Date(startAt.getTime() - earlyMin * 60000);
 
     const slotEl = document.getElementById("today-checkin-slot");
     const statusEl = document.getElementById("today-card-status");
@@ -168,14 +170,25 @@ function initTodayCard(container) {
 
     const checkinLabel = checkedOut ? "再入室" : "入室する";
 
+    function formatTime(d) {
+        return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+
     function render() {
         const now = new Date();
 
-        if (now < startAt) {
-            const diffMin = Math.max(1, Math.ceil((startAt - now) / 60000));
+        if (now < earlyAt) {
+            // 入室可能時刻(開始earlyMin分前)より前: 入室可能になるまでの分数を表示
+            const diffMin = Math.max(1, Math.ceil((earlyAt - now) / 60000));
             slotEl.innerHTML =
                 '<button type="button" class="btn btn-primary" disabled>入室する（開始前）</button>';
-            statusEl.textContent = `開始まであと${diffMin}分`;
+            statusEl.textContent = `入室可能まであと${diffMin}分`;
+        } else if (now < startAt) {
+            slotEl.innerHTML =
+                '<form method="post" action="' + checkinUrl + '" class="inline-form-block">' +
+                '<button type="submit" class="btn btn-primary">' + checkinLabel + "</button>" +
+                "</form>";
+            statusEl.textContent = `まもなく開始です（〜${formatTime(startAt)}）`;
         } else if (now < endAt) {
             slotEl.innerHTML =
                 '<form method="post" action="' + checkinUrl + '" class="inline-form-block">' +

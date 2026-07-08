@@ -33,6 +33,8 @@ while _t <= _end:
 
 WEEKLY_LIMIT_MIN = 420  # 週7時間制限(分)
 
+CHECKIN_EARLY_MIN = 5  # 開始何分前から入室できるか
+
 # 曜日ラベル(月曜始まり)。home/reserve/reportの各所で使う。
 WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
 
@@ -500,14 +502,24 @@ def home():
     # 本日の予約カードの状態文言(サーバ側の初期描画。JS未実行時でも状態がわかるようにする。
     # ページを開きっぱなしのときのライブ更新はapp.jsのinitTodayCardが同じ判定を30秒毎に行う)
     today_reservation_status_text = None
+    today_reservation_early_time_str = None
     if today_reservation is not None:
-        if today_reservation["start_time"] > now_time_str:
-            start_dt = datetime.strptime(
-                f"{today_reservation['date']} {today_reservation['start_time']}", "%Y-%m-%d %H:%M"
+        early_time_str = (
+            datetime.strptime(today_reservation["start_time"], "%H:%M")
+            - timedelta(minutes=CHECKIN_EARLY_MIN)
+        ).strftime("%H:%M")
+        today_reservation_early_time_str = early_time_str
+
+        if now_time_str < early_time_str:
+            # まだ入室可能時刻(開始CHECKIN_EARLY_MIN分前)より前: 入室可能になるまでの分数を表示
+            early_dt = datetime.strptime(
+                f"{today_reservation['date']} {early_time_str}", "%Y-%m-%d %H:%M"
             )
-            diff_seconds = (start_dt - now).total_seconds()
+            diff_seconds = (early_dt - now).total_seconds()
             diff_min = max(1, -(-int(diff_seconds) // 60))  # 切り上げ
-            today_reservation_status_text = f"開始まであと{diff_min}分"
+            today_reservation_status_text = f"入室可能まであと{diff_min}分"
+        elif today_reservation["start_time"] > now_time_str:
+            today_reservation_status_text = f"まもなく開始です（〜{today_reservation['start_time']}）"
         elif today_reservation["end_time"] > now_time_str:
             today_reservation_status_text = f"利用可能な時間帯です（〜{today_reservation['end_time']}）"
         else:
@@ -536,6 +548,8 @@ def home():
         today_reservation=today_reservation,
         today_reservation_checked_out=today_reservation_checked_out,
         today_reservation_status_text=today_reservation_status_text,
+        today_reservation_early_time_str=today_reservation_early_time_str,
+        checkin_early_min=CHECKIN_EARLY_MIN,
         upcoming_reservations=upcoming_reservations,
         weekly_used_hours=weekly_used_hours,
         weekly_limit_hours=weekly_limit_hours,
@@ -879,8 +893,11 @@ def checkin(reservation_id):
     if reservation["date"] != today_str:
         flash("当日以外は入室できません。", "error")
         return redirect(url_for("home"))
-    if now_time_str < reservation["start_time"]:
-        flash("開始時刻より前は入室できません。", "error")
+
+    start_dt_time = datetime.strptime(reservation["start_time"], "%H:%M")
+    early_time_str = (start_dt_time - timedelta(minutes=CHECKIN_EARLY_MIN)).strftime("%H:%M")
+    if now_time_str < early_time_str:
+        flash(f"入室できるのは開始{CHECKIN_EARLY_MIN}分前からです。", "error")
         return redirect(url_for("home"))
     if now_time_str >= reservation["end_time"]:
         flash("予約時間を過ぎているため入室できません。", "error")

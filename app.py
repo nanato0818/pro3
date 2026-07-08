@@ -7,7 +7,7 @@ import csv
 import io
 import json
 import os
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 
@@ -36,6 +36,25 @@ WEEKLY_LIMIT_MIN = 420  # 週7時間制限(分)
 # 管理者登録コード(登録時にこのコードを入力すると管理者になる)
 # 本番環境では環境変数 ADMIN_CODE で別の値に上書きする
 ADMIN_CODE = os.environ.get("ADMIN_CODE", "pro3-admin-2026")
+
+# 本番(PythonAnywhere)はサーバ時刻がUTCのため、datetime.now()/date.today()を
+# そのまま使うと日本時間と9時間ずれて入退室判定が壊れる。
+# アプリ内の「現在時刻・今日」判定は必ずこの2関数経由にする。
+JST = timezone(timedelta(hours=9))
+
+
+def now_jst():
+    """
+    現在時刻をJST(日本時間)で返す。
+    戻り値はtzinfoを持たない「素朴な」datetime(既存DBのisoformat文字列や
+    datetime.strptimeの結果と型を揃え、そのまま比較・保存できるようにするため)。
+    """
+    return datetime.now(JST).replace(tzinfo=None)
+
+
+def today_jst():
+    """JSTでの「今日」の日付(date型)を返す。"""
+    return now_jst().date()
 
 
 # ---------------------------------------------------------
@@ -88,18 +107,28 @@ def inject_current_user():
 
 def get_weekly_reserved_minutes(user_id, target_date_str):
     """
-    指定日付が属する週(月曜起点)の、active予約の合計予約時間(分)を返す。
-    将来「実績時間(training_logsの実働分)も含める」に変更する場合は、
-    この関数だけを修正すればよいように判定ロジックをここに集約している。
+    指定日付が属する週(月曜起点)の利用時間(分)を返す。
+
+    「実績+今後の予定のハイブリッド方式」:
+    終了済み(終了時刻が現在より過去)の予約は、実際に使わなければ0分として
+    扱いたいため、予約時間ではなくtraining_logsの実働分(duration_min。
+    退室未了=進行中のログは含めない)の合計を採用する。ログが無い予約
+    (無断キャンセル・ノーショー)は0分として扱われ、週の上限を無駄に
+    消費しない。
+    一方、終了時刻がまだ来ていない(未消化・進行中の)予約は、実績が
+    確定していないため予定時間(終了-開始)で見積もる。
+    両者を合算したものがこの週の「利用時間」となる。
     """
     db = get_db()
     target = datetime.strptime(target_date_str, "%Y-%m-%d").date()
     monday = target - timedelta(days=target.weekday())
     sunday = monday + timedelta(days=6)
 
+    now = now_jst()
+
     rows = db.execute(
         """
-        SELECT start_time, end_time FROM reservations
+        SELECT id, date, start_time, end_time FROM reservations
         WHERE user_id = ? AND status = 'active'
           AND date BETWEEN ? AND ?
         """,
@@ -108,9 +137,24 @@ def get_weekly_reserved_minutes(user_id, target_date_str):
 
     total = 0
     for row in rows:
-        start = datetime.strptime(row["start_time"], "%H:%M")
-        end = datetime.strptime(row["end_time"], "%H:%M")
-        total += int((end - start).total_seconds() // 60)
+        end_dt = datetime.strptime(f"{row['date']} {row['end_time']}", "%Y-%m-%d %H:%M")
+
+        if end_dt <= now:
+            # 終了済み: 実績(実働分)のみを加算。ログが無ければ0分。
+            log_row = db.execute(
+                """
+                SELECT COALESCE(SUM(duration_min), 0) AS total
+                FROM training_logs
+                WHERE reservation_id = ? AND checkout_at IS NOT NULL
+                """,
+                (row["id"],),
+            ).fetchone()
+            total += log_row["total"] or 0
+        else:
+            # 未消化・進行中: 予定時間で見積もる。
+            start = datetime.strptime(row["start_time"], "%H:%M")
+            end = datetime.strptime(row["end_time"], "%H:%M")
+            total += int((end - start).total_seconds() // 60)
     return total
 
 
@@ -321,8 +365,8 @@ def home():
     user_id = session["user_id"]
     user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
-    today = date.today()
-    now = datetime.now()
+    today = today_jst()
+    now = now_jst()
     now_date_str = now.strftime("%Y-%m-%d")
     now_time_str = now.strftime("%H:%M")
 
@@ -344,7 +388,7 @@ def home():
         r for r in active_reservations if r["date"] > now_date_str
     ]
 
-    # 今週の利用時間(予約ベース)と週上限(ペナルティ反映)
+    # 今週の利用時間(実績+今後の予定のハイブリッド方式)と週上限(ペナルティ反映)
     weekly_used_min = get_weekly_reserved_minutes(user_id, today.isoformat())
     weekly_limit_min = get_weekly_limit_minutes(user_id, today.isoformat())
     weekly_remaining_min = max(0, weekly_limit_min - weekly_used_min)
@@ -369,6 +413,36 @@ def home():
         (user_id,),
     ).fetchone()
 
+    # 本日の予約について、既に退室済み(checkout済み)のログがあるかどうか。
+    # あれば「入室する」ではなく「再入室」の表示にしてボタンの意味を明確にする。
+    today_reservation_checked_out = False
+    if today_reservation is not None:
+        checked_out_log = db.execute(
+            """
+            SELECT id FROM training_logs
+            WHERE reservation_id = ? AND checkout_at IS NOT NULL
+            LIMIT 1
+            """,
+            (today_reservation["id"],),
+        ).fetchone()
+        today_reservation_checked_out = checked_out_log is not None
+
+    # 本日の予約カードの状態文言(サーバ側の初期描画。JS未実行時でも状態がわかるようにする。
+    # ページを開きっぱなしのときのライブ更新はapp.jsのinitTodayCardが同じ判定を30秒毎に行う)
+    today_reservation_status_text = None
+    if today_reservation is not None:
+        if today_reservation["start_time"] > now_time_str:
+            start_dt = datetime.strptime(
+                f"{today_reservation['date']} {today_reservation['start_time']}", "%Y-%m-%d %H:%M"
+            )
+            diff_seconds = (start_dt - now).total_seconds()
+            diff_min = max(1, -(-int(diff_seconds) // 60))  # 切り上げ
+            today_reservation_status_text = f"開始まであと{diff_min}分"
+        elif today_reservation["end_time"] > now_time_str:
+            today_reservation_status_text = f"利用可能な時間帯です（〜{today_reservation['end_time']}）"
+        else:
+            today_reservation_status_text = "本日の予約時間は終了しました"
+
     # リマインダー通知用: 本日のactive予約の開始時刻一覧(JSへ渡すJSON)
     today_active_reservations = [
         r for r in active_reservations if r["date"] == now_date_str
@@ -388,6 +462,8 @@ def home():
         now_date_str=now_date_str,
         now_time_str=now_time_str,
         today_reservation=today_reservation,
+        today_reservation_checked_out=today_reservation_checked_out,
+        today_reservation_status_text=today_reservation_status_text,
         upcoming_reservations=upcoming_reservations,
         weekly_used_hours=weekly_used_hours,
         weekly_limit_hours=weekly_limit_hours,
@@ -409,7 +485,7 @@ def calendar_page():
     db = get_db()
     user_id = session["user_id"]
 
-    today = date.today()
+    today = today_jst()
     year = request.args.get("year", type=int, default=today.year)
     month = request.args.get("month", type=int, default=today.month)
 
@@ -430,7 +506,7 @@ def calendar_page():
 
     reserved_dates = {r["date"] for r in reservations if r["status"] == "active"}
 
-    now = datetime.now()
+    now = now_jst()
     now_date_str = now.strftime("%Y-%m-%d")
     now_time_str = now.strftime("%H:%M")
 
@@ -478,7 +554,7 @@ def reserve(date_str):
         elif end_time <= start_time:
             error = "終了時刻は開始時刻より後にしてください。"
         else:
-            now = datetime.now()
+            now = now_jst()
             start_dt = datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H:%M")
             if start_dt < now:
                 error = "過去の日時には予約できません。"
@@ -516,14 +592,14 @@ def reserve(date_str):
             INSERT INTO reservations (user_id, date, start_time, end_time, status, created_at)
             VALUES (?, ?, ?, ?, 'active', ?)
             """,
-            (user_id, date_str, start_time, end_time, datetime.now().isoformat(timespec="seconds")),
+            (user_id, date_str, start_time, end_time, now_jst().isoformat(timespec="seconds")),
         )
         db.commit()
         flash("予約しました。", "success")
         return redirect(url_for("home"))
 
     # 過去日は予約不可
-    if target_date < date.today():
+    if target_date < today_jst():
         flash("過去の日付には予約できません。", "error")
         return redirect(url_for("home"))
 
@@ -581,7 +657,7 @@ WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
 def report():
     db = get_db()
     user_id = session["user_id"]
-    today = date.today()
+    today = today_jst()
     this_monday = today - timedelta(days=today.weekday())
 
     # (a) 今週(月〜日)の日別トレーニング時間(training_logsの実働分。退室済みのみ)
@@ -687,7 +763,7 @@ def checkin(reservation_id):
         flash("予約が見つかりません。", "error")
         return redirect(url_for("home"))
 
-    now = datetime.now()
+    now = now_jst()
     today_str = now.strftime("%Y-%m-%d")
     now_time_str = now.strftime("%H:%M")
 
@@ -696,6 +772,9 @@ def checkin(reservation_id):
         return redirect(url_for("home"))
     if now_time_str < reservation["start_time"]:
         flash("開始時刻より前は入室できません。", "error")
+        return redirect(url_for("home"))
+    if now_time_str >= reservation["end_time"]:
+        flash("予約時間を過ぎているため入室できません。", "error")
         return redirect(url_for("home"))
 
     # 既存の入室中ログがあればそれを使い、無ければ新規作成
@@ -774,7 +853,7 @@ def checkout(reservation_id):
         flash("入室記録が見つかりません。", "error")
         return redirect(url_for("home"))
 
-    now = datetime.now()
+    now = now_jst()
     checkin_at = datetime.fromisoformat(log["checkin_at"])
     duration_min = int((now - checkin_at).total_seconds() // 60)
 
@@ -809,7 +888,7 @@ def checkout(reservation_id):
 @admin_required
 def admin_dashboard():
     db = get_db()
-    today_str = date.today().isoformat()
+    today_str = today_jst().isoformat()
 
     # (a) 本日の全予約一覧(全ユーザー分、時間順)
     today_reservations = db.execute(

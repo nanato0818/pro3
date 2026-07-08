@@ -22,6 +22,7 @@
         <div class="progress-fill" style="width: {{ weekly_pct }}%;"></div>
     </div>
     <div class="weekly-card-remaining">残り{{ weekly_remaining_text }}利用できます</div>
+    <div class="weekly-card-hint">実績と今後の予約の合計です</div>
 </section>
 
 {% if active_log %}
@@ -40,14 +41,24 @@
     {% if today_reservation %}
     <div class="today-card-time">{{ today_reservation.start_time }} – {{ today_reservation.end_time }}</div>
     <p class="today-card-note">開始15分前に通知します</p>
-    <div class="today-card-actions">
-        {% if today_reservation.start_time <= now_time_str %}
-        <form method="post" action="{{ url_for('checkin', reservation_id=today_reservation.id) }}" class="inline-form-block">
-            <button type="submit" class="btn btn-primary">入室する</button>
-        </form>
-        {% else %}
-        <button type="button" class="btn btn-primary" disabled>入室する（開始前）</button>
-        {% endif %}
+    <div class="today-card-actions" id="today-card-actions"
+         data-start-at="{{ today_reservation.date }}T{{ today_reservation.start_time }}:00"
+         data-end-at="{{ today_reservation.date }}T{{ today_reservation.end_time }}:00"
+         data-end-label="{{ today_reservation.end_time }}"
+         data-checkin-url="{{ url_for('checkin', reservation_id=today_reservation.id) }}"
+         data-checked-out="{{ '1' if today_reservation_checked_out else '0' }}">
+        <div id="today-checkin-slot">
+            {% if today_reservation.start_time <= now_time_str and now_time_str < today_reservation.end_time %}
+            <form method="post" action="{{ url_for('checkin', reservation_id=today_reservation.id) }}" class="inline-form-block">
+                <button type="submit" class="btn btn-primary">{% if today_reservation_checked_out %}再入室{% else %}入室する{% endif %}</button>
+            </form>
+            {% elif now_time_str >= today_reservation.end_time %}
+            {# 終了後はボタンなし(JSも同じ判定で追随する) #}
+            {% else %}
+            <button type="button" class="btn btn-primary" disabled>入室する（開始前）</button>
+            {% endif %}
+        </div>
+        <p class="today-card-status" id="today-card-status">{{ today_reservation_status_text }}</p>
         <form method="post" action="{{ url_for('cancel_reservation', reservation_id=today_reservation.id) }}"
               class="inline-form-block js-confirm-cancel">
             <button type="submit" class="btn btn-outline">取消</button>

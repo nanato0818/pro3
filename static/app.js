@@ -22,6 +22,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (reminderDataEl) {
         initHomeReminders(reminderDataEl);
     }
+
+    // ホーム画面: 本日の予約カードのライブ更新(開始前/利用可能/終了後の切り替え)
+    const todayCardActions = document.getElementById("today-card-actions");
+    if (todayCardActions) {
+        initTodayCard(todayCardActions);
+    }
 });
 
 function initSessionTimer(root) {
@@ -143,4 +149,45 @@ function initHomeReminders(reminderDataEl) {
 
     checkReminders();
     setInterval(checkReminders, 30000);
+}
+
+// ホーム画面専用: 本日の予約カードの「入室する」ボタンをページを開きっぱなしでも
+// 追随させるライブ更新処理(既存のリマインダー通知ロジックとは独立)
+function initTodayCard(container) {
+    const startAt = new Date(container.dataset.startAt.replace(" ", "T"));
+    const endAt = new Date(container.dataset.endAt.replace(" ", "T"));
+    const endLabel = container.dataset.endLabel;
+    const checkinUrl = container.dataset.checkinUrl;
+    const checkedOut = container.dataset.checkedOut === "1";
+
+    const slotEl = document.getElementById("today-checkin-slot");
+    const statusEl = document.getElementById("today-card-status");
+    if (!slotEl || !statusEl) {
+        return;
+    }
+
+    const checkinLabel = checkedOut ? "再入室" : "入室する";
+
+    function render() {
+        const now = new Date();
+
+        if (now < startAt) {
+            const diffMin = Math.max(1, Math.ceil((startAt - now) / 60000));
+            slotEl.innerHTML =
+                '<button type="button" class="btn btn-primary" disabled>入室する（開始前）</button>';
+            statusEl.textContent = `開始まであと${diffMin}分`;
+        } else if (now < endAt) {
+            slotEl.innerHTML =
+                '<form method="post" action="' + checkinUrl + '" class="inline-form-block">' +
+                '<button type="submit" class="btn btn-primary">' + checkinLabel + "</button>" +
+                "</form>";
+            statusEl.textContent = `利用可能な時間帯です（〜${endLabel}）`;
+        } else {
+            slotEl.innerHTML = "";
+            statusEl.textContent = "本日の予約時間は終了しました";
+        }
+    }
+
+    render();
+    setInterval(render, 30000);
 }
